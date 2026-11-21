@@ -512,20 +512,36 @@ class MainActivity : Activity() {
     @Deprecated("Deprecated by Android API; retained for broad device compatibility")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == captureRequestCode) {
-            if (resultCode == Activity.RESULT_OK && data != null) {
-                val service = Intent(this, OneShotCaptureService::class.java).apply {
-                    putExtra("resultCode", resultCode)
-                    putExtra("projectionData", data)
+        when (requestCode) {
+            captureRequestCode -> {
+                if (resultCode == Activity.RESULT_OK && data != null) {
+                    val service = Intent(this, OneShotCaptureService::class.java).apply {
+                        putExtra("resultCode", resultCode)
+                        putExtra("projectionData", data)
+                    }
+                    if (Build.VERSION.SDK_INT >= 26) startForegroundService(service) else startService(service)
+                    captureStatus.text = "Permission granted. Switch to eFootball now; one frame will be captured after 5 seconds."
+                } else {
+                    captureStatus.text = "Screen capture cancelled. Nothing was recorded."
                 }
-                if (Build.VERSION.SDK_INT >= 26) startForegroundService(service) else startService(service)
-                captureStatus.text = "Permission granted. Switch to eFootball now; one frame will be captured after 5 seconds."
-            } else {
-                captureStatus.text = "Screen capture cancelled. Nothing was recorded."
+            }
+            voiceRequestCode -> {
+                if (resultCode == RESULT_OK) {
+                    val spoken = data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
+                    if (!spoken.isNullOrBlank()) {
+                        chatInput.setText(spoken)
+                        sendChatMessage()
+                    } else {
+                        speakNextReply = false
+                        chatResult.text = "No speech recognized. Try again or type your question."
+                    }
+                } else {
+                    speakNextReply = false
+                    chatResult.text = "Voice input cancelled. You can type your question."
+                }
             }
         }
     }
-
 
     private fun showCapturedImage(path: String) {
         val file = java.io.File(path)
@@ -667,25 +683,7 @@ class MainActivity : Activity() {
         }
     }
 
-    @Deprecated("Deprecated by Android; retained for compatibility")
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == voiceRequestCode) {
-            if (resultCode == RESULT_OK) {
-                val spoken = data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
-                if (!spoken.isNullOrBlank()) {
-                    chatInput.setText(spoken)
-                    sendChatMessage()
-                } else {
-                    speakNextReply = false
-                    chatResult.text = "No speech recognized. Try again or type your question."
-                }
-            } else {
-                speakNextReply = false
-                chatResult.text = "Voice input cancelled. You can type your question."
-            }
-        }
-    }
+
 
     private fun sendChatMessage() {
         val message = chatInput.text.toString().trim()
