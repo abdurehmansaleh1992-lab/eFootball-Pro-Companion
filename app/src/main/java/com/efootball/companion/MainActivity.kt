@@ -163,7 +163,7 @@ class MainActivity : Activity() {
                 clipToPadding = false
                 overScrollMode = View.OVER_SCROLL_IF_CONTENT_SCROLLS
                 visibility = page.visibility
-                addView(page, ScrollView.LayoutParams(-1, -2))
+                addView(page, android.widget.FrameLayout.LayoutParams(-1, -2))
             }
         }
         pageScrollViews.forEach { scroll ->
