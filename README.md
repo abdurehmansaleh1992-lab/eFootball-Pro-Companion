@@ -8,7 +8,7 @@ A lightweight Android companion for eFootball Mobile with public-network diagnos
 - Connection information: Wi-Fi/mobile-data state, Android internet validation, and metered-network status.
 - One-shot screenshot capture: Android's explicit MediaProjection consent, visible foreground notification, a single captured frame, local preview, and optional sharing.
 - AI screenshot analysis: user-triggered upload to the configured backend, with evidence-limited tactical analysis.
-- AI chat coach: typed Amharic or English questions through the configured backend.
+- AI chat coach: typed Amharic or English questions through the configured backend, with practical tactical guidance oriented toward the user's stated central-possession passing style.
 - Push-to-talk voice coach: Android speech-recognition activity requests Amharic input and Android TextToSpeech reads the AI answer when the device has a compatible speech service.
 
 ## Important limitations
@@ -28,7 +28,7 @@ A lightweight Android companion for eFootball Mobile with public-network diagnos
 5. In the app, open **CONFIGURE REAL AI BACKEND** and enter the service URL and the same app access token.
 6. Use chat or capture a screenshot and tap **ANALYZE SCREENSHOT WITH AI**.
 
-The backend keeps the Gemini key server-side, checks the app token, accepts JPEG/PNG/WebP screenshots up to 8 MB, and uses evidence-limited prompts. AI provider usage may incur charges.
+The backend keeps the Gemini key server-side, checks the app token, accepts JPEG/PNG/WebP screenshots up to 8 MB, and uses evidence-limited prompts. The Android app accepts HTTPS backend base URLs only and does not follow authenticated redirects. AI provider usage may incur charges.
 
 ## Build and verification
 
