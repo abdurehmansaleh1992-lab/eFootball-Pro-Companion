@@ -120,8 +120,9 @@ class OneShotCaptureService : Service() {
         display = null
         try { reader?.close() } catch (_: Exception) {}
         reader = null
-        try { projection?.stop() } catch (_: Exception) {}
+        val activeProjection = projection
         projection = null
+        try { activeProjection?.stop() } catch (_: Exception) {}
     }
 
     private fun createChannel() {
