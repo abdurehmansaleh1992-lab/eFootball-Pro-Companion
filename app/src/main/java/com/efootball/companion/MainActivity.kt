@@ -50,6 +50,9 @@ class MainActivity : Activity() {
     private lateinit var aiAnalysisButton: Button
     private lateinit var aiSettingsButton: Button
     private lateinit var aiAnalysisResult: TextView
+    private lateinit var chatInput: EditText
+    private lateinit var chatSendButton: Button
+    private lateinit var chatResult: TextView
     private val aiPrefs by lazy { getSharedPreferences("ai_backend", Context.MODE_PRIVATE) }
     private val aiBackendUrl: String get() = aiPrefs.getString("backend_url", "") ?: ""
     private val aiAccessToken: String get() = aiPrefs.getString("access_token", "") ?: ""
@@ -268,6 +271,26 @@ class MainActivity : Activity() {
         val aiButtonParams = matchWrap(); aiButtonParams.topMargin = dp(6); content.addView(aiAnalysisButton, aiButtonParams)
         aiAnalysisResult = cardText("Real AI analysis is not configured yet. Set your private backend URL and access token.")
         val aiResultParams = matchWrap(); aiResultParams.topMargin = dp(8); content.addView(aiAnalysisResult, aiResultParams)
+
+        section(content, "AMHARIC AI CHAT COACH")
+        chatInput = EditText(this).apply {
+            hint = "Ask your eFootball coach in Amharic or English…"
+            setTextColor(silver)
+            setHintTextColor(muted)
+            setPadding(dp(14), dp(12), dp(14), dp(12))
+            setBackgroundColor(panel)
+            minLines = 2
+            maxLines = 4
+        }
+        content.addView(chatInput, matchWrap())
+        chatSendButton = Button(this).apply {
+            text = "SEND TO AI COACH"
+            isAllCaps = false
+            setOnClickListener { sendChatMessage() }
+        }
+        val chatButtonParams = matchWrap(); chatButtonParams.topMargin = dp(6); content.addView(chatSendButton, chatButtonParams)
+        chatResult = cardText("Your AI coach reply will appear here.")
+        val chatResultParams = matchWrap(); chatResultParams.topMargin = dp(8); content.addView(chatResult, chatResultParams)
 
         section(content, "SMART SCREENSHOT COACH")
         val coach = cardText("Screenshot analysis is being prepared. You will choose when to share a game screenshot. No continuous screen recording.")
@@ -589,6 +612,49 @@ class MainActivity : Activity() {
             } finally {
                 connection?.disconnect()
                 runOnUiThread { aiAnalysisButton.isEnabled = latestCapturePath != null && aiBackendUrl.isNotBlank() && aiAccessToken.isNotBlank() }
+            }
+        }
+    }
+
+    private fun sendChatMessage() {
+        val message = chatInput.text.toString().trim()
+        if (message.isBlank()) {
+            chatResult.text = "እባክህ ጥያቄህን ጻፍ።"
+            return
+        }
+        val baseUrl = aiBackendUrl
+        val token = aiAccessToken
+        if (baseUrl.isBlank() || token.isBlank()) {
+            chatResult.text = "First configure the AI backend URL and private access token."
+            return
+        }
+        chatSendButton.isEnabled = false
+        chatResult.text = "AI Coach is thinking…"
+        thread {
+            var connection: HttpURLConnection? = null
+            try {
+                val payload = JSONObject().put("message", message)
+                connection = (URL("$baseUrl/chat").openConnection() as HttpURLConnection).apply {
+                    requestMethod = "POST"
+                    connectTimeout = 15000
+                    readTimeout = 90000
+                    doOutput = true
+                    setRequestProperty("Content-Type", "application/json")
+                    setRequestProperty("X-App-Token", token)
+                }
+                connection.outputStream.use { it.write(payload.toString().toByteArray(Charsets.UTF_8)) }
+                val code = connection.responseCode
+                val stream = if (code in 200..299) connection.inputStream else connection.errorStream
+                val responseText = stream?.bufferedReader()?.use { it.readText() } ?: "No response."
+                if (code !in 200..299) throw IllegalStateException("AI server error $code: $responseText")
+                val answer = JSONObject(responseText).optString("answer", "")
+                if (answer.isBlank()) throw IllegalStateException("AI returned an empty answer.")
+                runOnUiThread { chatResult.text = answer }
+            } catch (e: Exception) {
+                runOnUiThread { chatResult.text = "Chat failed: ${e.message ?: "connection error"}. Check backend URL, token, and internet." }
+            } finally {
+                connection?.disconnect()
+                runOnUiThread { chatSendButton.isEnabled = true }
             }
         }
     }
