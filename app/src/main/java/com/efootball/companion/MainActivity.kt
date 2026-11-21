@@ -391,7 +391,9 @@ class MainActivity : Activity() {
             val totalAttempts = measurements.sumOf { it.total }
             val failures = measurements.sumOf { it.failures }
             val avg = if (allTimes.isEmpty()) Long.MAX_VALUE else allTimes.average().toLong()
-            val jitter = if (allTimes.size < 2) 0L else allTimes.maxOrNull()!! - allTimes.minOrNull()!!
+            // Estimate variation within each endpoint, not across different endpoints.
+            val endpointJitters = usable.map { it.jitter }.filter { it > 0L }
+            val jitter = if (endpointJitters.isEmpty()) 0L else endpointJitters.maxOrNull()!!
             val loss = if (totalAttempts == 0) 100 else failures * 100 / totalAttempts
             val grade = when {
                 allTimes.isEmpty() || loss >= 25 || avg >= redAvgLimit || jitter >= 100 -> "RED"
@@ -407,8 +409,10 @@ class MainActivity : Activity() {
             runOnUiThread {
                 showTrafficGrade(grade, avg, jitter, loss)
                 results.text = measurements.joinToString("\n\n") { formatMeasurement(it) } +
-                    "\n\nCombined estimate\nAverage response: ${if (avg == Long.MAX_VALUE) "No response" else "$avg ms"}" +
-                    "\nVariation (jitter): ${jitter} ms\nFailed connections: $failures/$totalAttempts ($loss%)"
+                    "\n\nCombined estimate\nAverage TCP response: ${if (avg == Long.MAX_VALUE) "No response" else "$avg ms"}" +
+                    "\nWorst endpoint variation: ${jitter} ms\nFailed connection attempts: $failures/$totalAttempts ($loss%)" +
+                    "\n\n$advice" +
+                    "\n\nNote: this is not ICMP packet loss or Konami server ping."
                 status.text = "Network test completed"
                 progress.visibility = View.GONE
                 checkButton.isEnabled = true
@@ -436,7 +440,7 @@ class MainActivity : Activity() {
     private fun formatMeasurement(m: Measurement): String {
         val avg = if (m.times.isEmpty()) "No response" else "${m.average} ms"
         val range = if (m.times.isEmpty()) "—" else "${m.times.minOrNull()}–${m.times.maxOrNull()} ms"
-        return "${m.label}\nAverage TCP response: $avg  •  Range: $range\nJitter: ${m.jitter} ms  •  Failed: ${m.failures}/${m.total}"
+        return "${m.label}\nAverage TCP response: $avg  •  Range: $range\nLatency variation (range): ${m.jitter} ms  •  Failed attempts: ${m.failures}/${m.total}"
     }
 
     private fun showTrafficGrade(grade: String, avg: Long, jitter: Long, loss: Int) {
@@ -453,7 +457,7 @@ class MainActivity : Activity() {
             else -> "RED • BUSY / UNSTABLE"
         }
         val avgText = if (avg == Long.MAX_VALUE) "No response" else "$avg ms"
-        trafficDetail.text = "Response $avgText  •  Jitter $jitter ms  •  Loss $loss%"
+        trafficDetail.text = "TCP response $avgText  •  Variation $jitter ms  •  Failed attempts $loss%"
     }
 
     private fun showThresholdSettings() {
@@ -726,7 +730,10 @@ class MainActivity : Activity() {
                     }
                 }
             } catch (e: Exception) {
-                runOnUiThread { chatResult.text = "Chat failed: ${e.message ?: "connection error"}. Check backend URL, token, and internet." }
+                runOnUiThread {
+                    speakNextReply = false
+                    chatResult.text = "Chat failed: ${e.message ?: "connection error"}. Check backend URL, token, and internet."
+                }
             } finally {
                 connection?.disconnect()
                 runOnUiThread { chatSendButton.isEnabled = true }
