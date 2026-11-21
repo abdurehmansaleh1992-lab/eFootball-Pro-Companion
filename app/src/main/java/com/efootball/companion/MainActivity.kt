@@ -231,8 +231,26 @@ class MainActivity : Activity() {
         vpnStatus = cardText("FREE MODE • No relay server is configured. Import a trusted WireGuard profile to use a real tunnel. The profile must route eFootball only.")
         currentPage.addView(vpnStatus, matchWrap())
 
-        val freeServerInfo = cardText("FREE SERVER OPTIONS\\n1) GrokSSH Ethiopia: closest option to test; each config lasts 7 days and may be unavailable when slots are full.\\n2) VPNBook: free backup in US/Canada/UK/Germany/France; each config lasts 7 days and may have higher latency from Ethiopia.\\nCreate a config on the provider website, then return here and import the .conf file. Never share your config or private key.")
+        val freeServerInfo = cardText("FREE SERVER OPTIONS\\n1) ClaudeSSH Ethiopia WireGuard: listed online; free accounts, no card, config validity 7 days.\\n2) GrokSSH Ethiopia: free 7-day config; availability may be limited by slots.\\n3) VPNBook: backup servers in US/Canada/UK/Germany/France; 7-day config and likely higher latency from Ethiopia.\\nCreate your own config on the provider site, then return here and import the .conf file. Never share your config or private key.")
         val freeInfoParams = matchWrap(); freeInfoParams.topMargin = dp(8); currentPage.addView(freeServerInfo, freeInfoParams)
+
+        val claudeButton = Button(this).apply {
+            text = "CHECK CLAUDESSH ETHIOPIA SERVER"
+            isAllCaps = false
+            setOnClickListener {
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://claudessh.com/check-server-status/")))
+            }
+        }
+        val claudeParams = matchWrap(); claudeParams.topMargin = dp(7); currentPage.addView(claudeButton, claudeParams)
+
+        val claudeGeneratorButton = Button(this).apply {
+            text = "CLAUDESSH WIREGUARD CONFIG GENERATOR"
+            isAllCaps = false
+            setOnClickListener {
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://claudessh.com/wireguard-generator/")))
+            }
+        }
+        val claudeGenParams = matchWrap(); claudeGenParams.topMargin = dp(6); currentPage.addView(claudeGeneratorButton, claudeGenParams)
 
         val grokButton = Button(this).apply {
             text = "GET FREE ETHIOPIA SERVER"
