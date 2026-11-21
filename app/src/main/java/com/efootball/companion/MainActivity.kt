@@ -193,7 +193,7 @@ class MainActivity : Activity() {
             setTextColor(muted)
             gravity = Gravity.CENTER
             setPadding(dp(8), dp(20), dp(8), dp(10))
-            lineSpacing = dp(3).toFloat()
+            setLineSpacing(dp(3).toFloat(), 1f)
         }
         content.addView(footer, matchWrap())
 
