@@ -142,11 +142,22 @@ class MainActivity : Activity() {
             setBackgroundColor(bg)
             setPadding(dp(20), dp(22), dp(20), dp(18))
         }
-        val scroll = ScrollView(this).apply { isFillViewport = true }
-        val content = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(0, 0, 0, dp(12))
+        val pages = listOf("HOME", "NETWORK", "TITAN VPN", "SCREENSHOT", "AI COACH")
+        val pageViews = pages.map {
+            LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(2), dp(4), dp(2), dp(4))
+                visibility = if (it == "HOME") View.VISIBLE else View.GONE
+            }
         }
+        val homePage = pageViews[0]
+        val networkPage = pageViews[1]
+        val vpnPage = pageViews[2]
+        val screenshotPage = pageViews[3]
+        val coachPage = pageViews[4]
+        var currentPage = homePage
+        val frame = android.widget.FrameLayout(this)
+        pageViews.forEach { frame.addView(it, android.widget.FrameLayout.LayoutParams(-1, -1)) }
 
         val brand = TextView(this).apply {
             text = "◈"
@@ -154,7 +165,7 @@ class MainActivity : Activity() {
             setTextColor(silver)
             gravity = Gravity.CENTER
         }
-        content.addView(brand, matchWrap())
+        currentPage.addView(brand, matchWrap())
 
         val title = TextView(this).apply {
             text = "eFOOTBALL PRO"
@@ -164,7 +175,7 @@ class MainActivity : Activity() {
             typeface = Typeface.create("sans-serif", Typeface.BOLD)
             gravity = Gravity.CENTER
         }
-        content.addView(title, matchWrap())
+        currentPage.addView(title, matchWrap())
 
         val subtitle = TextView(this).apply {
             text = "COMPANION  •  NETWORK & MATCH COACH"
@@ -174,9 +185,9 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER
             setPadding(0, dp(7), 0, dp(24))
         }
-        content.addView(subtitle, matchWrap())
+        currentPage.addView(subtitle, matchWrap())
 
-        section(content, "SMART NETWORK TRAFFIC LIGHT")
+        section(currentPage, "SMART NETWORK TRAFFIC LIGHT")
         val lightCard = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -209,15 +220,16 @@ class MainActivity : Activity() {
         lightText.addView(trafficTitle, matchWrap())
         lightText.addView(trafficDetail, matchWrap())
         lightCard.addView(lightText, LinearLayout.LayoutParams(0, -2, 1f))
-        content.addView(lightCard, matchWrap())
+        currentPage.addView(lightCard, matchWrap())
 
-        section(content, "CONNECTION STATUS")
+        section(currentPage, "CONNECTION STATUS")
         networkInfo = cardText("Checking network…")
-        content.addView(networkInfo, matchWrap())
+        currentPage.addView(networkInfo, matchWrap())
 
-        section(content, "TITAN GAMING NETWORK • WIREGUARD")
+        currentPage = vpnPage
+        section(currentPage, "TITAN GAMING NETWORK • WIREGUARD")
         vpnStatus = cardText("FREE MODE • No relay server is configured. Import a trusted WireGuard profile to use a real tunnel. The profile must route eFootball only.")
-        content.addView(vpnStatus, matchWrap())
+        currentPage.addView(vpnStatus, matchWrap())
         vpnImportButton = Button(this).apply {
             text = "IMPORT WIREGUARD PROFILE"
             isAllCaps = false
@@ -229,27 +241,28 @@ class MainActivity : Activity() {
                 startActivityForResult(picker, vpnProfileRequestCode)
             }
         }
-        val vpnImportParams = matchWrap(); vpnImportParams.topMargin = dp(7); content.addView(vpnImportButton, vpnImportParams)
+        val vpnImportParams = matchWrap(); vpnImportParams.topMargin = dp(7); currentPage.addView(vpnImportButton, vpnImportParams)
         vpnConnectButton = Button(this).apply {
             text = "CONNECT TITAN VPN"
             isAllCaps = false
             isEnabled = false
             setOnClickListener { requestWireGuardConnect() }
         }
-        val vpnConnectParams = matchWrap(); vpnConnectParams.topMargin = dp(6); content.addView(vpnConnectButton, vpnConnectParams)
+        val vpnConnectParams = matchWrap(); vpnConnectParams.topMargin = dp(6); currentPage.addView(vpnConnectButton, vpnConnectParams)
         vpnDisconnectButton = Button(this).apply {
             text = "DISCONNECT VPN"
             isAllCaps = false
             isEnabled = false
             setOnClickListener { disconnectWireGuard() }
         }
-        val vpnDisconnectParams = matchWrap(); vpnDisconnectParams.topMargin = dp(6); content.addView(vpnDisconnectButton, vpnDisconnectParams)
+        val vpnDisconnectParams = matchWrap(); vpnDisconnectParams.topMargin = dp(6); currentPage.addView(vpnDisconnectButton, vpnDisconnectParams)
         val vpnNote = cardText("Security: full-device VPN profiles are rejected. Only an imported profile with the installed eFootball app in IncludedApplications is accepted. No private key is saved by this app; re-import the profile after restarting.")
-        val vpnNoteParams = matchWrap(); vpnNoteParams.topMargin = dp(6); content.addView(vpnNote, vpnNoteParams)
+        val vpnNoteParams = matchWrap(); vpnNoteParams.topMargin = dp(6); currentPage.addView(vpnNote, vpnNoteParams)
 
-        section(content, "NETWORK DIAGNOSTICS")
+        currentPage = networkPage
+        section(currentPage, "NETWORK DIAGNOSTICS")
         status = cardText("Ready when you are")
-        content.addView(status, matchWrap())
+        currentPage.addView(status, matchWrap())
 
         checkButton = Button(this).apply {
             text = "RUN NETWORK TEST"
@@ -262,7 +275,7 @@ class MainActivity : Activity() {
         }
         val bp = matchWrap()
         bp.topMargin = dp(12)
-        content.addView(checkButton, bp)
+        currentPage.addView(checkButton, bp)
 
         settingsButton = Button(this).apply {
             text = "TRAFFIC LIGHT SETTINGS"
@@ -274,21 +287,22 @@ class MainActivity : Activity() {
         }
         val sp = matchWrap()
         sp.topMargin = dp(6)
-        content.addView(settingsButton, sp)
+        currentPage.addView(settingsButton, sp)
 
         progress = ProgressBar(this).apply { visibility = View.GONE }
         val pp = matchWrap()
         pp.topMargin = dp(8)
-        content.addView(progress, pp)
+        currentPage.addView(progress, pp)
 
         results = cardText("The test checks response time, variation (jitter), and failed connections.")
         val rp = matchWrap()
         rp.topMargin = dp(10)
-        content.addView(results, rp)
+        currentPage.addView(results, rp)
 
-        section(content, "ONE-SHOT GAME SCREEN CAPTURE")
+        currentPage = screenshotPage
+        section(currentPage, "ONE-SHOT GAME SCREEN CAPTURE")
         val captureInfo = cardText("Capture one screenshot only. After Android permission, switch back to eFootball within 5 seconds. Capture stops immediately after one frame; no continuous recording or background monitoring.")
-        content.addView(captureInfo, matchWrap())
+        currentPage.addView(captureInfo, matchWrap())
         captureButton = Button(this).apply {
             text = "CAPTURE ONE GAME SCREEN"
             textSize = 13f
@@ -297,48 +311,49 @@ class MainActivity : Activity() {
             isAllCaps = false
             setOnClickListener { requestOneShotCapture() }
         }
-        val cp = matchWrap(); cp.topMargin = dp(8); content.addView(captureButton, cp)
+        val cp = matchWrap(); cp.topMargin = dp(8); currentPage.addView(captureButton, cp)
         captureStatus = cardText("No screenshot captured yet.")
-        val csp = matchWrap(); csp.topMargin = dp(8); content.addView(captureStatus, csp)
+        val csp = matchWrap(); csp.topMargin = dp(8); currentPage.addView(captureStatus, csp)
         capturePreview = ImageView(this).apply {
             adjustViewBounds = true
             scaleType = ImageView.ScaleType.FIT_CENTER
             visibility = View.GONE
             setBackgroundColor(panel)
         }
-        val previewParams = matchWrap(); previewParams.topMargin = dp(8); content.addView(capturePreview, previewParams)
+        val previewParams = matchWrap(); previewParams.topMargin = dp(8); currentPage.addView(capturePreview, previewParams)
         shareCaptureButton = Button(this).apply {
             text = "SHARE SCREENSHOT"
             isAllCaps = false
             isEnabled = false
             setOnClickListener { shareCapturedImage() }
         }
-        val shareParams = matchWrap(); shareParams.topMargin = dp(6); content.addView(shareCaptureButton, shareParams)
+        val shareParams = matchWrap(); shareParams.topMargin = dp(6); currentPage.addView(shareCaptureButton, shareParams)
 
         aiSettingsButton = Button(this).apply {
             text = "CONFIGURE REAL AI BACKEND"
             isAllCaps = false
             setOnClickListener { showAiBackendSettings() }
         }
-        val aiSettingsParams = matchWrap(); aiSettingsParams.topMargin = dp(8); content.addView(aiSettingsButton, aiSettingsParams)
+        val aiSettingsParams = matchWrap(); aiSettingsParams.topMargin = dp(8); currentPage.addView(aiSettingsButton, aiSettingsParams)
         aiTestButton = Button(this).apply {
             text = "TEST AI BACKEND CONNECTION"
             isAllCaps = false
             isEnabled = aiBackendUrl.isNotBlank() && aiAccessToken.isNotBlank()
             setOnClickListener { testAiBackendConnection() }
         }
-        val aiTestParams = matchWrap(); aiTestParams.topMargin = dp(6); content.addView(aiTestButton, aiTestParams)
+        val aiTestParams = matchWrap(); aiTestParams.topMargin = dp(6); currentPage.addView(aiTestButton, aiTestParams)
         aiAnalysisButton = Button(this).apply {
             text = "ANALYZE SCREENSHOT WITH AI"
             isAllCaps = false
             isEnabled = false
             setOnClickListener { analyzeScreenshotWithAi() }
         }
-        val aiButtonParams = matchWrap(); aiButtonParams.topMargin = dp(6); content.addView(aiAnalysisButton, aiButtonParams)
+        val aiButtonParams = matchWrap(); aiButtonParams.topMargin = dp(6); currentPage.addView(aiAnalysisButton, aiButtonParams)
         aiAnalysisResult = cardText("Real AI analysis is not configured yet. Set your private backend URL and access token.")
-        val aiResultParams = matchWrap(); aiResultParams.topMargin = dp(8); content.addView(aiAnalysisResult, aiResultParams)
+        val aiResultParams = matchWrap(); aiResultParams.topMargin = dp(8); currentPage.addView(aiAnalysisResult, aiResultParams)
 
-        section(content, "AMHARIC AI CHAT COACH")
+        currentPage = coachPage
+        section(currentPage, "AMHARIC AI CHAT COACH")
         chatInput = EditText(this).apply {
             hint = "Ask your eFootball coach in Amharic or English…"
             setTextColor(silver)
@@ -348,27 +363,27 @@ class MainActivity : Activity() {
             minLines = 2
             maxLines = 4
         }
-        content.addView(chatInput, matchWrap())
+        currentPage.addView(chatInput, matchWrap())
         chatSendButton = Button(this).apply {
             text = "SEND TO AI COACH"
             isAllCaps = false
             setOnClickListener { sendChatMessage() }
         }
-        val chatButtonParams = matchWrap(); chatButtonParams.topMargin = dp(6); content.addView(chatSendButton, chatButtonParams)
+        val chatButtonParams = matchWrap(); chatButtonParams.topMargin = dp(6); currentPage.addView(chatSendButton, chatButtonParams)
         chatResult = cardText("Your AI coach reply will appear here.")
-        val chatResultParams = matchWrap(); chatResultParams.topMargin = dp(8); content.addView(chatResult, chatResultParams)
+        val chatResultParams = matchWrap(); chatResultParams.topMargin = dp(8); currentPage.addView(chatResult, chatResultParams)
         voiceButton = Button(this).apply {
             text = "TALK TO AI COACH (AMHARIC)"
             isAllCaps = false
             setOnClickListener { startVoiceCoach() }
         }
-        val voiceParams = matchWrap(); voiceParams.topMargin = dp(7); content.addView(voiceButton, voiceParams)
+        val voiceParams = matchWrap(); voiceParams.topMargin = dp(7); currentPage.addView(voiceButton, voiceParams)
         val voiceNote = cardText("Tap to speak, then the AI coach replies in text and voice. This push-to-talk mode avoids an always-on microphone. Amharic speech support depends on your phone's speech services.")
-        val voiceNoteParams = matchWrap(); voiceNoteParams.topMargin = dp(6); content.addView(voiceNote, voiceNoteParams)
+        val voiceNoteParams = matchWrap(); voiceNoteParams.topMargin = dp(6); currentPage.addView(voiceNote, voiceNoteParams)
 
-        section(content, "SMART SCREENSHOT COACH")
+        section(currentPage, "SMART SCREENSHOT COACH")
         val coach = cardText("Capture one game frame with Android permission, preview it, then choose ANALYZE SCREENSHOT WITH AI. The image is sent only after you tap analyze. No continuous screen recording.")
-        content.addView(coach, matchWrap())
+        currentPage.addView(coach, matchWrap())
 
         val footer = TextView(this).apply {
             text = "LIGHTWEIGHT DESIGN  •  LOW BACKGROUND ACTIVITY\nTCP checks use public endpoints, not eFootball servers. Traffic-light status is an estimate of connection quality; it cannot detect Konami server load or guarantee lag-free play."
@@ -378,10 +393,44 @@ class MainActivity : Activity() {
             setPadding(dp(8), dp(20), dp(8), dp(10))
             setLineSpacing(dp(3).toFloat(), 1f)
         }
-        content.addView(footer, matchWrap())
+        currentPage.addView(footer, matchWrap())
 
-        scroll.addView(content)
-        root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
+        root.addView(frame, LinearLayout.LayoutParams(-1, 0, 1f))
+        val nav = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            setPadding(0, dp(7), 0, dp(4))
+            setBackgroundColor(Color.rgb(13, 20, 34))
+        }
+        val navButtons = mutableListOf<TextView>()
+        pages.forEachIndexed { index, label ->
+            val button = TextView(this).apply {
+                text = when (index) {
+                    0 -> "⌂\\nHOME"
+                    1 -> "⌁\\nNETWORK"
+                    2 -> "◇\\nVPN"
+                    3 -> "▣\\nSCREEN"
+                    else -> "✦\\nCOACH"
+                }
+                gravity = Gravity.CENTER
+                textSize = 10f
+                setLineSpacing(dp(2).toFloat(), 1f)
+                typeface = Typeface.DEFAULT_BOLD
+                setPadding(dp(2), dp(5), dp(2), dp(5))
+                setTextColor(if (index == 0) silver else muted)
+                setOnClickListener {
+                    pageViews.forEachIndexed { pageIndex, page ->
+                        page.visibility = if (pageIndex == index) View.VISIBLE else View.GONE
+                    }
+                    navButtons.forEachIndexed { buttonIndex, item ->
+                        item.setTextColor(if (buttonIndex == index) silver else muted)
+                    }
+                }
+            }
+            navButtons.add(button)
+            nav.addView(button, LinearLayout.LayoutParams(0, dp(48), 1f))
+        }
+        root.addView(nav, LinearLayout.LayoutParams(-1, dp(54)))
         setContentView(root)
     }
 
