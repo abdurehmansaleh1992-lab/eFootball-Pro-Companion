@@ -102,9 +102,16 @@ class OneShotCaptureService : Service() {
             bitmap.copyPixelsFromBuffer(buffer)
             val cropped = Bitmap.createBitmap(bitmap, 0, 0, image.width, image.height)
             val file = File(cacheDir, "efootball-capture-${System.currentTimeMillis()}.jpg")
-            FileOutputStream(file).use { cropped.compress(Bitmap.CompressFormat.JPEG, 82, it) }
+            val compressed = FileOutputStream(file).use {
+                cropped.compress(Bitmap.CompressFormat.JPEG, 82, it)
+            }
             bitmap.recycle()
             if (cropped !== bitmap) cropped.recycle()
+            if (!compressed || !file.exists() || file.length() == 0L) {
+                file.delete()
+                finishWithMessage("Screenshot could not be saved. Please capture again.")
+                return
+            }
             finishWithMessage("One screenshot captured. Preview it in the app.", file.absolutePath)
         } catch (e: Exception) {
             finishWithMessage("Could not save screenshot: ${e.javaClass.simpleName}")
