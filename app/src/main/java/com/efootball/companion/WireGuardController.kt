@@ -26,6 +26,9 @@ class WireGuardController(context: Context) {
             "WireGuard profile must be between 1 byte and 64 KB."
         }
         val parsed = Config.parse(ByteArrayInputStream(bytes))
+        require(parsed.getPeers().isNotEmpty() && parsed.getPeers().all { it.getEndpoint().isPresent }) {
+            "Profile must contain at least one peer with a valid relay endpoint."
+        }
         val included = parsed.getInterface().getIncludedApplications()
         require(included.isNotEmpty()) {
             "Safety check: profile must contain IncludedApplications for eFootball only. Full-device routing is disabled."
