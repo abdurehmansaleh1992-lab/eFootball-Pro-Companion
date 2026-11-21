@@ -51,6 +51,7 @@ class MainActivity : Activity() {
     private lateinit var trafficDetail: TextView
     private lateinit var captureStatus: TextView
     private lateinit var capturePreview: ImageView
+    private lateinit var captureButton: Button
     private lateinit var shareCaptureButton: Button
     private lateinit var aiAnalysisButton: Button
     private lateinit var aiSettingsButton: Button
@@ -73,6 +74,7 @@ class MainActivity : Activity() {
             val message = intent?.getStringExtra("message") ?: "Capture finished."
             val path = intent?.getStringExtra("filePath")
             runOnUiThread {
+                captureButton.isEnabled = true
                 captureStatus.text = message
                 if (!path.isNullOrBlank()) showCapturedImage(path)
             }
@@ -247,7 +249,7 @@ class MainActivity : Activity() {
         section(content, "ONE-SHOT GAME SCREEN CAPTURE")
         val captureInfo = cardText("Capture one screenshot only. After Android permission, switch back to eFootball within 5 seconds. Capture stops immediately after one frame; no continuous recording or background monitoring.")
         content.addView(captureInfo, matchWrap())
-        val captureButton = Button(this).apply {
+        captureButton = Button(this).apply {
             text = "CAPTURE ONE GAME SCREEN"
             textSize = 13f
             setTextColor(Color.rgb(10, 18, 30))
@@ -515,10 +517,16 @@ class MainActivity : Activity() {
 
 
     private fun requestOneShotCapture() {
-        val manager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-        @Suppress("DEPRECATION")
-        startActivityForResult(manager.createScreenCaptureIntent(), captureRequestCode)
-        captureStatus.text = "Approve Android screen-capture permission. Then switch to eFootball within 5 seconds."
+        captureButton.isEnabled = false
+        try {
+            val manager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+            @Suppress("DEPRECATION")
+            startActivityForResult(manager.createScreenCaptureIntent(), captureRequestCode)
+            captureStatus.text = "Approve Android screen-capture permission. Then switch to eFootball within 5 seconds."
+        } catch (e: Exception) {
+            captureButton.isEnabled = true
+            captureStatus.text = "Could not start screen capture: ${e.message ?: "permission unavailable"}"
+        }
     }
 
     @Deprecated("Deprecated by Android API; retained for broad device compatibility")
@@ -531,9 +539,15 @@ class MainActivity : Activity() {
                         putExtra("resultCode", resultCode)
                         putExtra("projectionData", data)
                     }
-                    if (Build.VERSION.SDK_INT >= 26) startForegroundService(service) else startService(service)
-                    captureStatus.text = "Permission granted. Switch to eFootball now; one frame will be captured after 5 seconds."
+                    try {
+                        if (Build.VERSION.SDK_INT >= 26) startForegroundService(service) else startService(service)
+                        captureStatus.text = "Permission granted. Switch to eFootball now; one frame will be captured after 5 seconds."
+                    } catch (e: Exception) {
+                        captureButton.isEnabled = true
+                        captureStatus.text = "Could not start capture service: ${e.message ?: "service unavailable"}"
+                    }
                 } else {
+                    captureButton.isEnabled = true
                     captureStatus.text = "Screen capture cancelled. Nothing was recorded."
                 }
             }
