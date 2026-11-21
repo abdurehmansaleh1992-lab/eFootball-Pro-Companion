@@ -317,7 +317,7 @@ class MainActivity : Activity() {
         val voiceNoteParams = matchWrap(); voiceNoteParams.topMargin = dp(6); content.addView(voiceNote, voiceNoteParams)
 
         section(content, "SMART SCREENSHOT COACH")
-        val coach = cardText("Screenshot analysis is being prepared. You will choose when to share a game screenshot. No continuous screen recording.")
+        val coach = cardText("Capture one game frame with Android permission, preview it, then choose ANALYZE SCREENSHOT WITH AI. The image is sent only after you tap analyze. No continuous screen recording.")
         content.addView(coach, matchWrap())
 
         val footer = TextView(this).apply {
@@ -692,12 +692,14 @@ class MainActivity : Activity() {
     private fun sendChatMessage() {
         val message = chatInput.text.toString().trim()
         if (message.isBlank()) {
+            speakNextReply = false
             chatResult.text = "እባክህ ጥያቄህን ጻፍ።"
             return
         }
         val baseUrl = aiBackendUrl
         val token = aiAccessToken
         if (baseUrl.isBlank() || token.isBlank()) {
+            speakNextReply = false
             chatResult.text = "First configure the AI backend URL and private access token."
             return
         }
