@@ -722,7 +722,7 @@ class MainActivity : Activity() {
             chatResult.text = "እባክህ ጥያቄህን ጻፍ።"
             return
         }
-        val baseUrl = aiBackendUrl
+        val baseUrl = normalizeBackendUrl(aiBackendUrl) ?: ""
         val token = aiAccessToken
         if (baseUrl.isBlank() || token.isBlank()) {
             speakNextReply = false
