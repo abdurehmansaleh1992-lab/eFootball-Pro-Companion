@@ -409,7 +409,7 @@ class MainActivity : Activity() {
                 else -> "YELLOW"
             }
             val advice = when {
-                failureRate >= 10 -> "Advice: packet failures are high. Move to a stronger signal or test the other SIM/Wi-Fi."
+                failureRate >= 10 -> "Advice: many connection attempts failed. Move to a stronger signal or compare the other SIM with Wi-Fi."
                 jitter >= 60 -> "Advice: connection is fluctuating. Pause downloads, disable hotspot sharing, and retest."
                 avg >= 150 -> "Advice: response is slow. Try another network location and compare Wi-Fi with mobile data."
                 else -> "Advice: connection looks comparatively steady. Pause downloads and background sync while playing."
