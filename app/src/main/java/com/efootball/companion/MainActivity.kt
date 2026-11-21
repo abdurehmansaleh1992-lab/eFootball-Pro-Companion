@@ -30,6 +30,7 @@ import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.ScrollView
 import android.widget.TextView
+import android.widget.Toast
 import java.net.HttpURLConnection
 import java.net.URL
 import android.util.Base64
@@ -394,23 +395,23 @@ class MainActivity : Activity() {
             // Estimate variation within each endpoint, not across different endpoints.
             val endpointJitters = usable.map { it.jitter }.filter { it > 0L }
             val jitter = if (endpointJitters.isEmpty()) 0L else endpointJitters.maxOrNull()!!
-            val loss = if (totalAttempts == 0) 100 else failures * 100 / totalAttempts
+            val failureRate = if (totalAttempts == 0) 100 else failures * 100 / totalAttempts
             val grade = when {
-                allTimes.isEmpty() || loss >= 25 || avg >= redAvgLimit || jitter >= 100 -> "RED"
-                avg <= greenAvgLimit && loss <= 5 && jitter <= 35 -> "GREEN"
+                allTimes.isEmpty() || failureRate >= 25 || avg >= redAvgLimit || jitter >= 100 -> "RED"
+                avg <= greenAvgLimit && failureRate <= 5 && jitter <= 35 -> "GREEN"
                 else -> "YELLOW"
             }
             val advice = when {
-                loss >= 10 -> "Advice: packet failures are high. Move to a stronger signal or test the other SIM/Wi-Fi."
+                failureRate >= 10 -> "Advice: packet failures are high. Move to a stronger signal or test the other SIM/Wi-Fi."
                 jitter >= 60 -> "Advice: connection is fluctuating. Pause downloads, disable hotspot sharing, and retest."
                 avg >= 150 -> "Advice: response is slow. Try another network location and compare Wi-Fi with mobile data."
                 else -> "Advice: connection looks comparatively steady. Pause downloads and background sync while playing."
             }
             runOnUiThread {
-                showTrafficGrade(grade, avg, jitter, loss)
+                showTrafficGrade(grade, avg, jitter, failureRate)
                 results.text = measurements.joinToString("\n\n") { formatMeasurement(it) } +
                     "\n\nCombined estimate\nAverage TCP response: ${if (avg == Long.MAX_VALUE) "No response" else "$avg ms"}" +
-                    "\nWorst endpoint variation: ${jitter} ms\nFailed connection attempts: $failures/$totalAttempts ($loss%)" +
+                    "\nWorst endpoint variation: ${jitter} ms\nFailed connection attempts: $failures/$totalAttempts ($failureRate%)" +
                     "\n\n$advice" +
                     "\n\nNote: this is not ICMP packet loss or Konami server ping."
                 status.text = "Network test completed"
@@ -585,6 +586,22 @@ class MainActivity : Activity() {
     }
 
 
+    private fun normalizeBackendUrl(raw: String): String? {
+        val value = raw.trim().trimEnd('/')
+        if (value.isBlank()) return null
+        return try {
+            val parsed = Uri.parse(value)
+            val validScheme = parsed.scheme.equals("https", ignoreCase = true)
+            val validHost = !parsed.host.isNullOrBlank()
+            val safeAuthority = parsed.userInfo == null && (parsed.port == -1 || parsed.port == 443)
+            val simpleBasePath = parsed.path.isNullOrBlank() || parsed.path == "/"
+            if (validScheme && validHost && safeAuthority && simpleBasePath &&
+                parsed.query == null && parsed.fragment == null) value else null
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     private fun showAiBackendSettings() {
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -611,11 +628,20 @@ class MainActivity : Activity() {
             .setView(layout)
             .setNegativeButton("CANCEL", null)
             .setPositiveButton("SAVE") { _, _ ->
-                val url = urlInput.text.toString().trim().trimEnd('/')
+                val url = normalizeBackendUrl(urlInput.text.toString())
                 val token = tokenInput.text.toString().trim()
+                if (url == null) {
+                    Toast.makeText(this, "Enter a valid HTTPS backend base URL (for example https://your-service.onrender.com).", Toast.LENGTH_LONG).show()
+                    return@setPositiveButton
+                }
+                if (token.isBlank()) {
+                    Toast.makeText(this, "Enter the private app access token.", Toast.LENGTH_LONG).show()
+                    return@setPositiveButton
+                }
                 aiPrefs.edit().putString("backend_url", url).putString("access_token", token).apply()
-                aiAnalysisButton.isEnabled = latestCapturePath != null && url.isNotBlank() && token.isNotBlank()
-                aiAnalysisResult.text = if (url.isNotBlank() && token.isNotBlank()) "AI backend settings saved. Capture a game screenshot, then analyze it." else "Backend settings are incomplete."
+                aiAnalysisButton.isEnabled = latestCapturePath != null
+                aiAnalysisResult.text = "Secure HTTPS AI backend settings saved. Capture a game screenshot, then analyze it."
+                chatResult.text = "Secure AI backend saved. You can now chat with your coach."
             }
             .show()
     }
@@ -626,7 +652,7 @@ class MainActivity : Activity() {
             aiAnalysisResult.text = "Capture a game screenshot first."
             return
         }
-        val baseUrl = aiBackendUrl
+        val baseUrl = normalizeBackendUrl(aiBackendUrl) ?: ""
         val token = aiAccessToken
         if (baseUrl.isBlank() || token.isBlank()) {
             aiAnalysisResult.text = "Configure the AI backend URL and access token first."
