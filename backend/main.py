@@ -47,7 +47,7 @@ def analyze(payload: AnalyzeRequest, x_app_token: str = Header(default="")):
         raise HTTPException(status_code=413, detail="Screenshot is larger than 8 MB.")
 
     prompt = """
-You are an expert eFootball Mobile tactical analyst. Analyze ONLY what is actually visible in this single screenshot.
+You are an expert eFootball Mobile tactical analyst. Analyze ONLY what is actually visible in this single screenshot. Write the report in Amharic by default; if the user's conversation language is clearly English, use English.
 Return a clear coaching report in plain text with these headings:
 1) WHAT IS VISIBLE: identify whether this is a formation/tactics screen, in-match pitch view, or another screen.
 2) OPPONENT FORMATION: name it only if the visible player layout supports a reliable identification; otherwise say NOT CLEAR.
