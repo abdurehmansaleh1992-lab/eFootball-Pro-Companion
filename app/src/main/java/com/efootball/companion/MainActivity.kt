@@ -41,7 +41,7 @@ class MainActivity : Activity() {
         val content = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
 
         val title = TextView(this).apply {
-            text = "eFOOTBALL PRO\\nCOMPANION"
+            text = "eFOOTBALL PRO\nCOMPANION"
             textSize = 27f
             setTextColor(white)
             setTypeface(null, android.graphics.Typeface.BOLD)
@@ -82,7 +82,7 @@ class MainActivity : Activity() {
         content.addView(progress, matchWrap())
 
         results = TextView(this).apply {
-            text = "Results will appear here.\\n\\nThis check tests public diagnostic endpoints, not Konami's eFootball servers."
+            text = "Results will appear here.\n\nThis check tests public diagnostic endpoints, not Konami's eFootball servers."
             textSize = 14f
             setTextColor(muted)
             setPadding(16, 18, 16, 18)
@@ -111,7 +111,7 @@ class MainActivity : Activity() {
         content.addView(coachInfo, matchWrap())
 
         val note = TextView(this).apply {
-            text = "\\nImportant: public endpoint response times are only connection indicators. They are not actual eFootball match ping. This starter does not change routing or guarantee lag reduction."
+            text = "\nImportant: public endpoint response times are only connection indicators. They are not actual eFootball match ping. This starter does not change routing or guarantee lag reduction."
             textSize = 12f
             setTextColor(muted)
             setPadding(2, 16, 2, 10)
@@ -131,9 +131,9 @@ class MainActivity : Activity() {
             val report = listOf(
                 measureEndpoint("Cloudflare (1.1.1.1)", "1.1.1.1", 443),
                 measureEndpoint("Google DNS (8.8.8.8)", "8.8.8.8", 443)
-            ).joinToString("\\n\\n")
+            ).joinToString("\n\n")
             runOnUiThread {
-                results.text = report + "\\n\\nThese are public endpoint checks, not eFootball server ping."
+                results.text = report + "\n\nThese are public endpoint checks, not eFootball server ping."
                 status.text = "Check complete"
                 progress.visibility = View.GONE
                 checkButton.isEnabled = true
@@ -153,11 +153,11 @@ class MainActivity : Activity() {
                 failures++
             }
         }
-        if (times.isEmpty()) return "$label\\nNo successful connection • failures: $failures/5"
+        if (times.isEmpty()) return "$label\nNo successful connection • failures: $failures/5"
         val avg = times.average().toLong()
         val min = times.minOrNull() ?: 0L
         val max = times.maxOrNull() ?: 0L
-        return "$label\\nAverage connect time: ${avg} ms\\nRange: ${min}–${max} ms\\nFailed checks: ${failures}/5"
+        return "$label\nAverage connect time: ${avg} ms\nRange: ${min}–${max} ms\nFailed checks: ${failures}/5"
     }
 
     private fun matchWrap() = LinearLayout.LayoutParams(
