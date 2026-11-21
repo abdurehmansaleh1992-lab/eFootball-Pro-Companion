@@ -2,6 +2,11 @@ package com.efootball.companion
 
 import android.app.Activity
 import android.app.AlertDialog
+import android.media.projection.MediaProjectionManager
+import android.content.Intent
+import android.content.BroadcastReceiver
+import android.content.IntentFilter
+import android.os.Build
 import android.os.Bundle
 import android.graphics.Color
 import android.graphics.Typeface
@@ -31,6 +36,14 @@ class MainActivity : Activity() {
     private lateinit var trafficLight: TextView
     private lateinit var trafficTitle: TextView
     private lateinit var trafficDetail: TextView
+    private lateinit var captureStatus: TextView
+    private val captureRequestCode = 7301
+    private val captureReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val message = intent?.getStringExtra("message") ?: "Capture finished."
+            runOnUiThread { captureStatus.text = message }
+        }
+    }
 
     private val bg = Color.rgb(8, 13, 25)
     private val panel = Color.rgb(20, 28, 43)
@@ -62,7 +75,14 @@ class MainActivity : Activity() {
         window.navigationBarColor = bg
         window.decorView.systemUiVisibility = 0
         buildScreen()
+        val filter = IntentFilter("com.efootball.companion.CAPTURE_RESULT")
+        if (Build.VERSION.SDK_INT >= 33) registerReceiver(captureReceiver, filter, Context.RECEIVER_NOT_EXPORTED) else registerReceiver(captureReceiver, filter)
         refreshNetworkInfo()
+    }
+
+    override fun onDestroy() {
+        try { unregisterReceiver(captureReceiver) } catch (_: Exception) {}
+        super.onDestroy()
     }
 
     private fun buildScreen() {
@@ -182,6 +202,21 @@ class MainActivity : Activity() {
         val rp = matchWrap()
         rp.topMargin = dp(10)
         content.addView(results, rp)
+
+        section(content, "ONE-SHOT GAME SCREEN CAPTURE")
+        val captureInfo = cardText("Capture one screenshot only. After Android permission, switch back to eFootball within 5 seconds. Capture stops immediately after one frame; no continuous recording or background monitoring.")
+        content.addView(captureInfo, matchWrap())
+        val captureButton = Button(this).apply {
+            text = "CAPTURE ONE GAME SCREEN"
+            textSize = 13f
+            setTextColor(Color.rgb(10, 18, 30))
+            backgroundTintList = android.content.res.ColorStateList.valueOf(silver)
+            isAllCaps = false
+            setOnClickListener { requestOneShotCapture() }
+        }
+        val cp = matchWrap(); cp.topMargin = dp(8); content.addView(captureButton, cp)
+        captureStatus = cardText("No screenshot captured yet.")
+        val csp = matchWrap(); csp.topMargin = dp(8); content.addView(captureStatus, csp)
 
         section(content, "SMART SCREENSHOT COACH")
         val coach = cardText("Screenshot analysis is being prepared. You will choose when to share a game screenshot. No continuous screen recording.")
@@ -360,6 +395,31 @@ class MainActivity : Activity() {
                 }
             }
             .show()
+    }
+
+
+    private fun requestOneShotCapture() {
+        val manager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+        @Suppress("DEPRECATION")
+        startActivityForResult(manager.createScreenCaptureIntent(), captureRequestCode)
+        captureStatus.text = "Approve Android screen-capture permission. Then switch to eFootball within 5 seconds."
+    }
+
+    @Deprecated("Deprecated by Android API; retained for broad device compatibility")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == captureRequestCode) {
+            if (resultCode == Activity.RESULT_OK && data != null) {
+                val service = Intent(this, OneShotCaptureService::class.java).apply {
+                    putExtra("resultCode", resultCode)
+                    putExtra("projectionData", data)
+                }
+                if (Build.VERSION.SDK_INT >= 26) startForegroundService(service) else startService(service)
+                captureStatus.text = "Permission granted. Switch to eFootball now; one frame will be captured after 5 seconds."
+            } else {
+                captureStatus.text = "Screen capture cancelled. Nothing was recorded."
+            }
+        }
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
