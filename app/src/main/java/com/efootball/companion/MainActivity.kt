@@ -99,8 +99,7 @@ class MainActivity : Activity() {
         val average: Long get() = if (times.isEmpty()) Long.MAX_VALUE else times.average().toLong()
         val jitter: Long get() = if (times.size < 2) 0L else (times.maxOrNull()!! - times.minOrNull()!!)
         val total: Int get() = times.size + failures
-        val lossPercent: Int get() = if (total == 0) 100 else failures * 100 / total
-    }
+            }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -444,7 +443,7 @@ class MainActivity : Activity() {
         return "${m.label}\nAverage TCP response: $avg  •  Range: $range\nLatency variation (range): ${m.jitter} ms  •  Failed attempts: ${m.failures}/${m.total}"
     }
 
-    private fun showTrafficGrade(grade: String, avg: Long, jitter: Long, loss: Int) {
+    private fun showTrafficGrade(grade: String, avg: Long, jitter: Long, failureRate: Int) {
         val color = when (grade) {
             "GREEN" -> green
             "YELLOW" -> yellow
@@ -458,7 +457,7 @@ class MainActivity : Activity() {
             else -> "RED • BUSY / UNSTABLE"
         }
         val avgText = if (avg == Long.MAX_VALUE) "No response" else "$avg ms"
-        trafficDetail.text = "TCP response $avgText  •  Variation $jitter ms  •  Failed attempts $loss%"
+        trafficDetail.text = "TCP response $avgText  •  Variation $jitter ms  •  Failed attempts $failureRate%"
     }
 
     private fun showThresholdSettings() {
