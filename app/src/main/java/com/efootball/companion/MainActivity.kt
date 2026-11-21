@@ -26,6 +26,10 @@ import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.ScrollView
 import android.widget.TextView
+import java.net.HttpURLConnection
+import java.net.URL
+import android.util.Base64
+import org.json.JSONObject
 import java.net.InetSocketAddress
 import java.net.Socket
 import kotlin.concurrent.thread
@@ -43,6 +47,12 @@ class MainActivity : Activity() {
     private lateinit var captureStatus: TextView
     private lateinit var capturePreview: ImageView
     private lateinit var shareCaptureButton: Button
+    private lateinit var aiAnalysisButton: Button
+    private lateinit var aiSettingsButton: Button
+    private lateinit var aiAnalysisResult: TextView
+    private val aiPrefs by lazy { getSharedPreferences("ai_backend", Context.MODE_PRIVATE) }
+    private val aiBackendUrl: String get() = aiPrefs.getString("backend_url", "") ?: ""
+    private val aiAccessToken: String get() = aiPrefs.getString("access_token", "") ?: ""
     private var latestCapturePath: String? = null
     private val captureRequestCode = 7301
     private val captureReceiver = object : BroadcastReceiver() {
@@ -242,6 +252,22 @@ class MainActivity : Activity() {
             setOnClickListener { shareCapturedImage() }
         }
         val shareParams = matchWrap(); shareParams.topMargin = dp(6); content.addView(shareCaptureButton, shareParams)
+
+        aiSettingsButton = Button(this).apply {
+            text = "CONFIGURE REAL AI BACKEND"
+            isAllCaps = false
+            setOnClickListener { showAiBackendSettings() }
+        }
+        val aiSettingsParams = matchWrap(); aiSettingsParams.topMargin = dp(8); content.addView(aiSettingsButton, aiSettingsParams)
+        aiAnalysisButton = Button(this).apply {
+            text = "ANALYZE SCREENSHOT WITH AI"
+            isAllCaps = false
+            isEnabled = false
+            setOnClickListener { analyzeScreenshotWithAi() }
+        }
+        val aiButtonParams = matchWrap(); aiButtonParams.topMargin = dp(6); content.addView(aiAnalysisButton, aiButtonParams)
+        aiAnalysisResult = cardText("Real AI analysis is not configured yet. Set your private backend URL and access token.")
+        val aiResultParams = matchWrap(); aiResultParams.topMargin = dp(8); content.addView(aiAnalysisResult, aiResultParams)
 
         section(content, "SMART SCREENSHOT COACH")
         val coach = cardText("Screenshot analysis is being prepared. You will choose when to share a game screenshot. No continuous screen recording.")
@@ -464,6 +490,8 @@ class MainActivity : Activity() {
         capturePreview.visibility = View.VISIBLE
         shareCaptureButton.isEnabled = true
         captureStatus.text = "Screenshot captured and saved locally. Preview below; share it when ready."
+        aiAnalysisButton.isEnabled = aiBackendUrl.isNotBlank() && aiAccessToken.isNotBlank()
+        aiAnalysisResult.text = "Screenshot ready. Tap ANALYZE SCREENSHOT WITH AI to request a real visual analysis."
     }
 
     private fun shareCapturedImage() {
@@ -481,6 +509,88 @@ class MainActivity : Activity() {
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         startActivity(Intent.createChooser(send, "Share eFootball screenshot"))
+    }
+
+
+    private fun showAiBackendSettings() {
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(8), dp(20), 0)
+        }
+        val urlInput = EditText(this).apply {
+            hint = "https://your-service.onrender.com"
+            setSingleLine(true)
+            setText(aiBackendUrl)
+        }
+        val tokenInput = EditText(this).apply {
+            hint = "Private app access token"
+            setSingleLine(true)
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+            setText(aiAccessToken)
+        }
+        layout.addView(TextView(this).apply { text = "Backend URL"; setTextColor(silver) })
+        layout.addView(urlInput)
+        layout.addView(TextView(this).apply { text = "App access token"; setTextColor(silver); setPadding(0, dp(10), 0, 0) })
+        layout.addView(tokenInput)
+        AlertDialog.Builder(this)
+            .setTitle("Real AI backend")
+            .setMessage("The AI key stays on your server, never inside the APK. Deploy the backend and enter its URL and app token here.")
+            .setView(layout)
+            .setNegativeButton("CANCEL", null)
+            .setPositiveButton("SAVE") { _, _ ->
+                val url = urlInput.text.toString().trim().trimEnd('/')
+                val token = tokenInput.text.toString().trim()
+                aiPrefs.edit().putString("backend_url", url).putString("access_token", token).apply()
+                aiAnalysisButton.isEnabled = latestCapturePath != null && url.isNotBlank() && token.isNotBlank()
+                aiAnalysisResult.text = if (url.isNotBlank() && token.isNotBlank()) "AI backend settings saved. Capture a game screenshot, then analyze it." else "Backend settings are incomplete."
+            }
+            .show()
+    }
+
+    private fun analyzeScreenshotWithAi() {
+        val path = latestCapturePath
+        if (path.isNullOrBlank() || !java.io.File(path).exists()) {
+            aiAnalysisResult.text = "Capture a game screenshot first."
+            return
+        }
+        val baseUrl = aiBackendUrl
+        val token = aiAccessToken
+        if (baseUrl.isBlank() || token.isBlank()) {
+            aiAnalysisResult.text = "Configure the AI backend URL and access token first."
+            return
+        }
+        aiAnalysisButton.isEnabled = false
+        aiAnalysisResult.text = "Sending this screenshot for real AI visual analysis…"
+        thread {
+            var connection: HttpURLConnection? = null
+            try {
+                val bytes = java.io.File(path).readBytes()
+                val payload = JSONObject()
+                    .put("image_base64", Base64.encodeToString(bytes, Base64.NO_WRAP))
+                    .put("mime_type", "image/jpeg")
+                connection = (URL("$baseUrl/analyze").openConnection() as HttpURLConnection).apply {
+                    requestMethod = "POST"
+                    connectTimeout = 15000
+                    readTimeout = 90000
+                    doOutput = true
+                    setRequestProperty("Content-Type", "application/json")
+                    setRequestProperty("X-App-Token", token)
+                }
+                connection.outputStream.use { it.write(payload.toString().toByteArray(Charsets.UTF_8)) }
+                val code = connection.responseCode
+                val stream = if (code in 200..299) connection.inputStream else connection.errorStream
+                val responseText = stream?.bufferedReader()?.use { it.readText() } ?: "No response from AI server."
+                if (code !in 200..299) throw IllegalStateException("AI server error $code: $responseText")
+                val analysis = JSONObject(responseText).optString("analysis", "")
+                if (analysis.isBlank()) throw IllegalStateException("The AI server returned an empty analysis.")
+                runOnUiThread { aiAnalysisResult.text = analysis }
+            } catch (e: Exception) {
+                runOnUiThread { aiAnalysisResult.text = "AI analysis failed: ${e.message ?: "connection error"}. Check backend URL, token, and internet." }
+            } finally {
+                connection?.disconnect()
+                runOnUiThread { aiAnalysisButton.isEnabled = latestCapturePath != null && aiBackendUrl.isNotBlank() && aiAccessToken.isNotBlank() }
+            }
+        }
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
