@@ -38,6 +38,20 @@ class BackendTests(unittest.TestCase):
                 analyze(payload, x_app_token="wrong-token")
         self.assertEqual(ctx.exception.status_code, 401)
 
+    def test_analyze_rejects_unsupported_mime_type(self):
+        payload = AnalyzeRequest(image_base64="A" * 120, mime_type="image/gif")
+        with patch.dict(os.environ, {"APP_ACCESS_TOKEN": "secret", "GEMINI_API_KEY": "test-key"}):
+            with self.assertRaises(HTTPException) as ctx:
+                analyze(payload, x_app_token="secret")
+        self.assertEqual(ctx.exception.status_code, 415)
+
+    def test_analyze_rejects_invalid_base64(self):
+        payload = AnalyzeRequest(image_base64="!" * 120, mime_type="image/jpeg")
+        with patch.dict(os.environ, {"APP_ACCESS_TOKEN": "secret", "GEMINI_API_KEY": "test-key"}):
+            with self.assertRaises(HTTPException) as ctx:
+                analyze(payload, x_app_token="secret")
+        self.assertEqual(ctx.exception.status_code, 400)
+
     def test_chat_joins_multiple_text_parts_with_real_newlines(self):
         response = {
             "candidates": [{
