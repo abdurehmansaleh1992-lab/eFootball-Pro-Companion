@@ -37,3 +37,7 @@ The backend keeps the Gemini key server-side, checks the app token, accepts JPEG
 - Backend unit tests: `cd backend && pip install -r requirements.txt -r requirements-dev.txt && pytest -q`.
 - Android build: `gradle assembleDebug`.
 - A successful CI build confirms compilation and APK packaging; it does **not** replace installation and real-device testing. Screen capture, speech services, backend connectivity, and performance must be verified on a physical Android device.
+
+## Privacy
+
+See [PRIVACY.md](PRIVACY.md) for how network diagnostics, one-shot screenshots, voice input, and configured AI services handle data.
