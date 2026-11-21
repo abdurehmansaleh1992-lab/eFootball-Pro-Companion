@@ -672,6 +672,7 @@ class MainActivity : Activity() {
                     readTimeout = 90000
                     doOutput = true
                     setRequestProperty("Content-Type", "application/json")
+                    instanceFollowRedirects = false
                     setRequestProperty("X-App-Token", token)
                 }
                 connection.outputStream.use { it.write(payload.toString().toByteArray(Charsets.UTF_8)) }
@@ -740,6 +741,7 @@ class MainActivity : Activity() {
                     readTimeout = 90000
                     doOutput = true
                     setRequestProperty("Content-Type", "application/json")
+                    instanceFollowRedirects = false
                     setRequestProperty("X-App-Token", token)
                 }
                 connection.outputStream.use { it.write(payload.toString().toByteArray(Charsets.UTF_8)) }
