@@ -15,10 +15,18 @@ A lightweight Android companion for eFootball Mobile with public-network diagnos
 ## Important limitations
 
 - TCP response time to public endpoints is **not** ICMP ping, true packet loss, eFootball/Konami server latency, or proof of server-side lag. The traffic light is only a comparative public-endpoint connection estimate.
-- This app does not yet provide GearUP-style VPN routing. Actual alternate routing requires a secure VPN/relay service, server infrastructure, and a separately implemented Android VPN service.
+- TITAN Gaming Network now embeds the official WireGuard Android tunnel library and accepts imported profiles only when they include the installed eFootball app in `IncludedApplications`; full-device profiles are rejected. Profiles are held in memory only and must be imported again after app restart. A tunnel cannot connect without a real, trusted WireGuard relay endpoint and valid peer keys. No VPS or relay is bundled, and this free build does not create one.
 - Voice is push-to-talk, not an always-listening “Hey Coach” wake word. Amharic speech recognition and TTS depend on services and language data installed on the phone.
 - The app cannot guarantee zero lag or improve the carrier's radio signal.
 - Screenshot analysis is sent only after the user explicitly taps the analysis button. No continuous gameplay recording is performed.
+
+## TITAN Gaming Network (free / no-host mode)
+
+1. The app includes the official WireGuard tunnel library and Android VPN permission flow.
+2. To connect, import a trusted `.conf` profile from a real WireGuard server. The profile must contain a valid peer endpoint and an `IncludedApplications` entry matching the installed eFootball app package. Full-device routing is intentionally rejected.
+3. The profile is kept in memory only; it is not written to preferences or logs. Import it again after restarting the app.
+4. With no VPS or relay server, the VPN remains unavailable until the user supplies a valid profile. Public TCP checks remain diagnostics only; they do not measure the Konami route or guarantee lower latency.
+5. Never use unknown free VPN profiles or share their private keys. This project does not generate, host, or claim to provide a free relay server.
 
 ## Configure the AI backend
 
@@ -33,7 +41,7 @@ The backend keeps the Gemini key server-side, checks the app token, accepts JPEG
 
 ## Build and verification
 
-- Android CI workflow: `.github/workflows/android-apk.yml` (manual dispatch after implementation is ready).
+- Android CI workflow: `.github/workflows/android-apk.yml` (automatically builds the debug APK on pushes to `main` and pull requests; manual dispatch is also available).
 - Backend test workflow: `.github/workflows/backend-tests.yml`.
 - Backend unit tests: `cd backend && pip install -r requirements.txt -r requirements-dev.txt && pytest -q`.
 - Android build: `gradle assembleDebug`.
