@@ -8,7 +8,10 @@ import android.content.BroadcastReceiver
 import android.content.IntentFilter
 import android.os.Build
 import android.os.Bundle
+import android.graphics.BitmapFactory
 import android.graphics.Color
+import android.net.Uri
+import androidx.core.content.FileProvider
 import android.graphics.Typeface
 import android.content.Context
 import android.net.ConnectivityManager
@@ -18,6 +21,7 @@ import android.view.Gravity
 import android.view.View
 import android.widget.Button
 import android.widget.EditText
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.ScrollView
@@ -37,11 +41,18 @@ class MainActivity : Activity() {
     private lateinit var trafficTitle: TextView
     private lateinit var trafficDetail: TextView
     private lateinit var captureStatus: TextView
+    private lateinit var capturePreview: ImageView
+    private lateinit var shareCaptureButton: Button
+    private var latestCapturePath: String? = null
     private val captureRequestCode = 7301
     private val captureReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             val message = intent?.getStringExtra("message") ?: "Capture finished."
-            runOnUiThread { captureStatus.text = message }
+            val path = intent?.getStringExtra("filePath")
+            runOnUiThread {
+                captureStatus.text = message
+                if (!path.isNullOrBlank()) showCapturedImage(path)
+            }
         }
     }
 
@@ -217,6 +228,20 @@ class MainActivity : Activity() {
         val cp = matchWrap(); cp.topMargin = dp(8); content.addView(captureButton, cp)
         captureStatus = cardText("No screenshot captured yet.")
         val csp = matchWrap(); csp.topMargin = dp(8); content.addView(captureStatus, csp)
+        capturePreview = ImageView(this).apply {
+            adjustViewBounds = true
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            visibility = View.GONE
+            setBackgroundColor(panel)
+        }
+        val previewParams = matchWrap(); previewParams.topMargin = dp(8); content.addView(capturePreview, previewParams)
+        shareCaptureButton = Button(this).apply {
+            text = "SHARE SCREENSHOT"
+            isAllCaps = false
+            isEnabled = false
+            setOnClickListener { shareCapturedImage() }
+        }
+        val shareParams = matchWrap(); shareParams.topMargin = dp(6); content.addView(shareCaptureButton, shareParams)
 
         section(content, "SMART SCREENSHOT COACH")
         val coach = cardText("Screenshot analysis is being prepared. You will choose when to share a game screenshot. No continuous screen recording.")
@@ -420,6 +445,42 @@ class MainActivity : Activity() {
                 captureStatus.text = "Screen capture cancelled. Nothing was recorded."
             }
         }
+    }
+
+
+    private fun showCapturedImage(path: String) {
+        val file = java.io.File(path)
+        if (!file.exists()) {
+            captureStatus.text = "Screenshot file was not found. Capture again."
+            return
+        }
+        val bitmap = BitmapFactory.decodeFile(file.absolutePath)
+        if (bitmap == null) {
+            captureStatus.text = "Screenshot could not be previewed."
+            return
+        }
+        latestCapturePath = file.absolutePath
+        capturePreview.setImageBitmap(bitmap)
+        capturePreview.visibility = View.VISIBLE
+        shareCaptureButton.isEnabled = true
+        captureStatus.text = "Screenshot captured and saved locally. Preview below; share it when ready."
+    }
+
+    private fun shareCapturedImage() {
+        val path = latestCapturePath ?: return
+        val file = java.io.File(path)
+        if (!file.exists()) {
+            captureStatus.text = "Screenshot file is no longer available. Capture again."
+            shareCaptureButton.isEnabled = false
+            return
+        }
+        val uri: Uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
+        val send = Intent(Intent.ACTION_SEND).apply {
+            type = "image/jpeg"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        startActivity(Intent.createChooser(send, "Share eFootball screenshot"))
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
