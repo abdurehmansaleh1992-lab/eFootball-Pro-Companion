@@ -157,7 +157,15 @@ class MainActivity : Activity() {
         val coachPage = pageViews[4]
         var currentPage = homePage
         val frame = android.widget.FrameLayout(this)
-        pageViews.forEach { frame.addView(it, android.widget.FrameLayout.LayoutParams(-1, -1)) }
+        pageViews.forEach { page ->
+            val scroll = ScrollView(this).apply {
+                isFillViewport = true
+                clipToPadding = false
+                overScrollMode = View.OVER_SCROLL_IF_CONTENT_SCROLLS
+                addView(page, ScrollView.LayoutParams(-1, -2))
+            }
+            frame.addView(scroll, android.widget.FrameLayout.LayoutParams(-1, -1))
+        }
 
         val brand = TextView(this).apply {
             text = "◈"
@@ -231,44 +239,14 @@ class MainActivity : Activity() {
         vpnStatus = cardText("FREE MODE • No relay server is configured. Import a trusted WireGuard profile to use a real tunnel. The profile must route eFootball only.")
         currentPage.addView(vpnStatus, matchWrap())
 
-        val freeServerInfo = cardText("FREE SERVER OPTIONS\\n1) ClaudeSSH Ethiopia WireGuard: listed online; free accounts, no card, config validity 7 days.\\n2) GrokSSH Ethiopia: free 7-day config; availability may be limited by slots.\\n3) VPNBook: backup servers in US/Canada/UK/Germany/France; 7-day config and likely higher latency from Ethiopia.\\nCreate your own config on the provider site, then return here and import the .conf file. Never share your config or private key.")
-        val freeInfoParams = matchWrap(); freeInfoParams.topMargin = dp(8); currentPage.addView(freeServerInfo, freeInfoParams)
-
-        val claudeButton = Button(this).apply {
-            text = "CHECK CLAUDESSH ETHIOPIA SERVER"
-            isAllCaps = false
-            setOnClickListener {
-                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://claudessh.com/check-server-status/")))
-            }
-        }
-        val claudeParams = matchWrap(); claudeParams.topMargin = dp(7); currentPage.addView(claudeButton, claudeParams)
-
-        val claudeGeneratorButton = Button(this).apply {
-            text = "CLAUDESSH WIREGUARD CONFIG GENERATOR"
-            isAllCaps = false
-            setOnClickListener {
-                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://claudessh.com/wireguard-generator/")))
-            }
-        }
-        val claudeGenParams = matchWrap(); claudeGenParams.topMargin = dp(6); currentPage.addView(claudeGeneratorButton, claudeGenParams)
-
-        val grokButton = Button(this).apply {
-            text = "GET FREE ETHIOPIA SERVER"
-            isAllCaps = false
-            setOnClickListener {
-                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://grokssh.com/wireguard/ethiopia/")))
-            }
-        }
-        val grokParams = matchWrap(); grokParams.topMargin = dp(7); currentPage.addView(grokButton, grokParams)
-
-        val vpnBookButton = Button(this).apply {
-            text = "GET FREE BACKUP SERVER"
-            isAllCaps = false
-            setOnClickListener {
-                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://static.vpnbook.com/freevpn/wireguard-vpn")))
-            }
-        }
-        val vpnBookParams = matchWrap(); vpnBookParams.topMargin = dp(6); currentPage.addView(vpnBookButton, vpnBookParams)
+        val relayInfo = cardText(
+            "NO VERIFIED FREE RELAY IS AVAILABLE RIGHT NOW.\n" +
+                "The previously checked Ethiopia providers were offline, and distant backup servers are not recommended as a low-latency option.\n\n" +
+                "Import a valid WireGuard .conf file from a relay you trust. This app will restrict the tunnel to eFootball only. Never share your profile or private key."
+        )
+        val relayInfoParams = matchWrap()
+        relayInfoParams.topMargin = dp(8)
+        currentPage.addView(relayInfo, relayInfoParams)
         vpnImportButton = Button(this).apply {
             text = "IMPORT WIREGUARD PROFILE"
             isAllCaps = false
@@ -445,11 +423,11 @@ class MainActivity : Activity() {
         pages.forEachIndexed { index, label ->
             val button = TextView(this).apply {
                 text = when (index) {
-                    0 -> "⌂\\nHOME"
-                    1 -> "⌁\\nNETWORK"
-                    2 -> "◇\\nVPN"
-                    3 -> "▣\\nSCREEN"
-                    else -> "✦\\nCOACH"
+                    0 -> "⌂\nHOME"
+                    1 -> "⌁\nNETWORK"
+                    2 -> "◇\nVPN"
+                    3 -> "▣\nSCREEN"
+                    else -> "✦\nCOACH"
                 }
                 gravity = Gravity.CENTER
                 textSize = 10f
