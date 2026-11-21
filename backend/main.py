@@ -15,7 +15,7 @@ MAX_IMAGE_BYTES = 8 * 1024 * 1024
 
 
 class AnalyzeRequest(BaseModel):
-    image_base64: str = Field(min_length=100)
+    image_base64: str = Field(min_length=100, max_length=11_184_812)
     mime_type: str = Field(default="image/jpeg")
 
 
@@ -122,7 +122,7 @@ def chat(payload: ChatRequest, x_app_token: str = Header(default="")):
         with urllib.request.urlopen(request, timeout=75) as response:
             result = json.loads(response.read().decode("utf-8"))
         parts = result.get("candidates", [{}])[0].get("content", {}).get("parts", [])
-        answer = "\\n".join(p.get("text", "") for p in parts if p.get("text"))
+        answer = "\n".join(p.get("text", "") for p in parts if p.get("text"))
         if not answer.strip():
             raise ValueError("Model returned no text.")
         return {"answer": answer, "model": GEMINI_MODEL}
