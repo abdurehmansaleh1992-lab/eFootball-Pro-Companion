@@ -54,6 +54,7 @@ class MainActivity : Activity() {
     private lateinit var shareCaptureButton: Button
     private lateinit var aiAnalysisButton: Button
     private lateinit var aiSettingsButton: Button
+    private lateinit var aiTestButton: Button
     private lateinit var aiAnalysisResult: TextView
     private lateinit var chatInput: EditText
     private lateinit var chatSendButton: Button
@@ -278,6 +279,13 @@ class MainActivity : Activity() {
             setOnClickListener { showAiBackendSettings() }
         }
         val aiSettingsParams = matchWrap(); aiSettingsParams.topMargin = dp(8); content.addView(aiSettingsButton, aiSettingsParams)
+        aiTestButton = Button(this).apply {
+            text = "TEST AI BACKEND CONNECTION"
+            isAllCaps = false
+            isEnabled = aiBackendUrl.isNotBlank() && aiAccessToken.isNotBlank()
+            setOnClickListener { testAiBackendConnection() }
+        }
+        val aiTestParams = matchWrap(); aiTestParams.topMargin = dp(6); content.addView(aiTestButton, aiTestParams)
         aiAnalysisButton = Button(this).apply {
             text = "ANALYZE SCREENSHOT WITH AI"
             isAllCaps = false
@@ -638,11 +646,46 @@ class MainActivity : Activity() {
                     return@setPositiveButton
                 }
                 aiPrefs.edit().putString("backend_url", url).putString("access_token", token).apply()
+                aiTestButton.isEnabled = true
                 aiAnalysisButton.isEnabled = latestCapturePath != null
                 aiAnalysisResult.text = "Secure HTTPS AI backend settings saved. Capture a game screenshot, then analyze it."
                 chatResult.text = "Secure AI backend saved. You can now chat with your coach."
             }
             .show()
+    }
+
+    private fun testAiBackendConnection() {
+        val baseUrl = normalizeBackendUrl(aiBackendUrl)
+        if (baseUrl == null) {
+            aiAnalysisResult.text = "Configure a valid HTTPS backend URL first."
+            return
+        }
+        aiTestButton.isEnabled = false
+        aiAnalysisResult.text = "Checking AI backend health…"
+        thread {
+            var connection: HttpURLConnection? = null
+            try {
+                connection = (URL(baseUrl + "/health").openConnection() as HttpURLConnection).apply {
+                    requestMethod = "GET"
+                    connectTimeout = 10000
+                    readTimeout = 10000
+                    instanceFollowRedirects = false
+                    setRequestProperty("Accept", "application/json")
+                }
+                val code = connection.responseCode
+                val responseText = (if (code in 200..299) connection.inputStream else connection.errorStream)
+                    ?.bufferedReader()?.use { it.readText() } ?: ""
+                if (code !in 200..299) throw IllegalStateException("Server returned HTTP " + code + ".")
+                val response = JSONObject(responseText)
+                if (response.optString("status") != "ok") throw IllegalStateException("Unexpected health response.")
+                runOnUiThread { aiAnalysisResult.text = "AI backend is reachable and healthy. AI key validity is checked when you send a chat or screenshot request." }
+            } catch (e: Exception) {
+                runOnUiThread { aiAnalysisResult.text = "Backend connection failed: " + (e.message ?: "network error") + ". Check the HTTPS URL and server status." }
+            } finally {
+                connection?.disconnect()
+                runOnUiThread { aiTestButton.isEnabled = aiBackendUrl.isNotBlank() && aiAccessToken.isNotBlank() }
+            }
+        }
     }
 
     private fun analyzeScreenshotWithAi() {
