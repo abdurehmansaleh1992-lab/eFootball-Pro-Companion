@@ -8,6 +8,7 @@ A lightweight Android companion for eFootball Mobile with public-network diagnos
 - Connection information: Wi-Fi/mobile-data state, Android internet validation, and metered-network status.
 - One-shot screenshot capture: Android's explicit MediaProjection consent, visible foreground notification, a single captured frame, local preview, and optional sharing.
 - AI screenshot analysis: user-triggered upload to the configured backend, with evidence-limited tactical analysis.
+- AI backend health check: verify that the configured HTTPS service responds before using AI features.
 - AI chat coach: typed Amharic or English questions through the configured backend, with practical tactical guidance oriented toward the user's stated central-possession passing style.
 - Push-to-talk voice coach: Android speech-recognition activity requests Amharic input and Android TextToSpeech reads the AI answer when the device has a compatible speech service.
 
