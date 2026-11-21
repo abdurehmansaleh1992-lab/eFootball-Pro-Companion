@@ -1,39 +1,39 @@
 # eFootball Pro Companion
 
-An Android companion app for eFootball mobile, focused on lightweight network diagnostics and screenshot-based coaching.
+A lightweight Android companion for eFootball Mobile with public-network diagnostics, user-triggered screenshot analysis, and an Amharic-capable AI chat/voice interface.
 
-## Current status
+## Implemented in the Android app
 
-- Project initialized.
-- Network diagnostics are intended to measure public diagnostic endpoints only; these measurements are not eFootball/Konami server ping.
-- Screenshot coaching will require explicit Android screen-capture permission and a secure AI service. No silent screen recording.
-- GearUP-style alternate routing requires relay/VPN infrastructure and is not provided by basic diagnostics.
+- Network diagnostics: repeated TCP connection-time measurements to Cloudflare (1.1.1.1:443) and Google (8.8.8.8:443), response variation, failed connection-attempt rate, traffic-light grading, and practical suggestions.
+- Connection information: Wi-Fi/mobile-data state, Android internet validation, and metered-network status.
+- One-shot screenshot capture: Android's explicit MediaProjection consent, visible foreground notification, a single captured frame, local preview, and optional sharing.
+- AI screenshot analysis: user-triggered upload to the configured backend, with evidence-limited tactical analysis.
+- AI chat coach: typed Amharic or English questions through the configured backend.
+- Push-to-talk voice coach: Android speech-recognition activity requests Amharic input and Android TextToSpeech reads the AI answer when the device has a compatible speech service.
 
-## Build
+## Important limitations
 
-Android app source and CI build workflow will be added in subsequent commits.
+- TCP response time to public endpoints is **not** ICMP ping, true packet loss, eFootball/Konami server latency, or proof of server-side lag. The traffic light is only a comparative public-endpoint connection estimate.
+- This app does not yet provide GearUP-style VPN routing. Actual alternate routing requires a secure VPN/relay service, server infrastructure, and a separately implemented Android VPN service.
+- Voice is push-to-talk, not an always-listening “Hey Coach” wake word. Amharic speech recognition and TTS depend on services and language data installed on the phone.
+- The app cannot guarantee zero lag or improve the carrier's radio signal.
+- Screenshot analysis is sent only after the user explicitly taps the analysis button. No continuous gameplay recording is performed.
 
+## Configure the AI backend
 
-## One-shot screen capture
+1. Create a Gemini API key in Google AI Studio.
+2. Deploy this repository's `render.yaml` Blueprint on Render.
+3. Set `GEMINI_API_KEY` and a long random `APP_ACCESS_TOKEN` in the Render service environment. Keep both private; do not commit them.
+4. After deployment, verify `https://YOUR-SERVICE.onrender.com/health`.
+5. In the app, open **CONFIGURE REAL AI BACKEND** and enter the service URL and the same app access token.
+6. Use chat or capture a screenshot and tap **ANALYZE SCREENSHOT WITH AI**.
 
-The app requests Android MediaProjection consent, starts a visible foreground notification, waits five seconds for the user to return to eFootball, captures exactly one frame, saves it in the app cache, and immediately stops projection. No continuous capture or background monitoring. Screenshot-based AI analysis is not yet connected to an AI backend.
+The backend keeps the Gemini key server-side, checks the app token, accepts JPEG/PNG/WebP screenshots up to 8 MB, and uses evidence-limited prompts. AI provider usage may incur charges.
 
-## Real AI screenshot analysis
+## Build and verification
 
-The Android app can send a user-selected one-shot screenshot to the companion AI backend and display the returned visual analysis. The backend uses Google's Gemini vision API. The Gemini API key is kept server-side and is never bundled in the APK.
-
-### Deploy the backend
-
-1. Create a private Gemini API key in Google AI Studio.
-2. In Render, create a new Blueprint from this repository and let it read `render.yaml`.
-3. Set the Render environment variables `GEMINI_API_KEY` and `APP_ACCESS_TOKEN`. Use a long random value for the app token. Never commit either secret.
-4. Wait for the service to deploy. Check `https://YOUR-SERVICE.onrender.com/health`.
-5. In the Android app, choose **CONFIGURE REAL AI BACKEND** and enter the Render service URL and the same `APP_ACCESS_TOKEN`.
-6. Capture a screenshot, then tap **ANALYZE SCREENSHOT WITH AI**.
-
-The analysis endpoint accepts only a user-triggered screenshot, checks the app token, and limits image uploads to 8 MB. The backend forwards the image to Gemini for analysis. A single static screenshot can sometimes reveal a formation, but it cannot reliably prove opponent playstyle or match habits; those require explicit tactics-screen evidence or multiple match moments. The AI prompt is designed to label uncertain findings instead of inventing them.
-
-### Privacy and operating limits
-
-Screenshots are transmitted to the backend and then to the configured AI provider only after the user taps the analysis button. Do not send screenshots containing private information. Provider usage may incur charges or be subject to provider limits. The app does not silently record gameplay.
-
+- Android CI workflow: `.github/workflows/android-apk.yml` (manual dispatch after implementation is ready).
+- Backend test workflow: `.github/workflows/backend-tests.yml`.
+- Backend unit tests: `cd backend && pip install -r requirements.txt -r requirements-dev.txt && pytest -q`.
+- Android build: `gradle assembleDebug`.
+- A successful CI build confirms compilation and APK packaging; it does **not** replace installation and real-device testing. Screen capture, speech services, backend connectivity, and performance must be verified on a physical Android device.
