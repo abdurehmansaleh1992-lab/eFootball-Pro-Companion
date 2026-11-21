@@ -100,7 +100,7 @@ class OneShotCaptureService : Service() {
             FileOutputStream(file).use { cropped.compress(Bitmap.CompressFormat.JPEG, 82, it) }
             bitmap.recycle()
             if (cropped !== bitmap) cropped.recycle()
-            finishWithMessage("One screenshot saved locally: ${file.name}. No continuous capture is running.")
+            finishWithMessage("One screenshot captured. Preview it in the app.", file.absolutePath)
         } catch (e: Exception) {
             finishWithMessage("Could not save screenshot: ${e.javaClass.simpleName}")
         } finally {
@@ -108,8 +108,10 @@ class OneShotCaptureService : Service() {
         }
     }
 
-    private fun finishWithMessage(message: String) {
-        sendBroadcast(Intent("com.efootball.companion.CAPTURE_RESULT").setPackage(packageName).putExtra("message", message))
+    private fun finishWithMessage(message: String, filePath: String? = null) {
+        val result = Intent("com.efootball.companion.CAPTURE_RESULT").setPackage(packageName).putExtra("message", message)
+        if (filePath != null) result.putExtra("filePath", filePath)
+        sendBroadcast(result)
         handler.postDelayed({ releaseCapture(); stopForeground(STOP_FOREGROUND_REMOVE); stopSelf() }, 250L)
     }
 
