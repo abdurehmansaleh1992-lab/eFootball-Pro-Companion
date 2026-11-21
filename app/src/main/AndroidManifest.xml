@@ -10,6 +10,13 @@
         android:label="eFootball Pro Companion"
         android:theme="@android:style/Theme.Material.NoActionBar"
         android:supportsRtl="true">
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths" />
+        </provider>
         <service android:name=".OneShotCaptureService" android:exported="false" android:foregroundServiceType="mediaProjection" />
         <activity android:name=".MainActivity" android:exported="true">
             <intent-filter>
