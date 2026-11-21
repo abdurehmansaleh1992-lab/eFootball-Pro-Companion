@@ -157,13 +157,16 @@ class MainActivity : Activity() {
         val coachPage = pageViews[4]
         var currentPage = homePage
         val frame = android.widget.FrameLayout(this)
-        pageViews.forEach { page ->
-            val scroll = ScrollView(this).apply {
+        val pageScrollViews = pageViews.map { page ->
+            ScrollView(this).apply {
                 isFillViewport = true
                 clipToPadding = false
                 overScrollMode = View.OVER_SCROLL_IF_CONTENT_SCROLLS
+                visibility = page.visibility
                 addView(page, ScrollView.LayoutParams(-1, -2))
             }
+        }
+        pageScrollViews.forEach { scroll ->
             frame.addView(scroll, android.widget.FrameLayout.LayoutParams(-1, -1))
         }
 
@@ -436,7 +439,7 @@ class MainActivity : Activity() {
                 setPadding(dp(2), dp(5), dp(2), dp(5))
                 setTextColor(if (index == 0) silver else muted)
                 setOnClickListener {
-                    pageViews.forEachIndexed { pageIndex, page ->
+                    pageScrollViews.forEachIndexed { pageIndex, page ->
                         page.visibility = if (pageIndex == index) View.VISIBLE else View.GONE
                     }
                     navButtons.forEachIndexed { buttonIndex, item ->
