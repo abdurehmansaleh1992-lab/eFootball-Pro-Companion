@@ -12,3 +12,8 @@ An Android companion app for eFootball mobile, focused on lightweight network di
 ## Build
 
 Android app source and CI build workflow will be added in subsequent commits.
+
+
+## One-shot screen capture
+
+The app requests Android MediaProjection consent, starts a visible foreground notification, waits five seconds for the user to return to eFootball, captures exactly one frame, saves it in the app cache, and immediately stops projection. No continuous capture or background monitoring. Screenshot-based AI analysis is not yet connected to an AI backend.
