@@ -19,6 +19,10 @@ class AnalyzeRequest(BaseModel):
     mime_type: str = Field(default="image/jpeg")
 
 
+class ChatRequest(BaseModel):
+    message: str = Field(min_length=1, max_length=4000)
+
+
 @app.get("/health")
 def health():
     return {"status": "ok", "service": "efootball-ai"}
@@ -84,3 +88,46 @@ Keep the report concise, useful, and specific to eFootball Mobile.
         raise HTTPException(status_code=502, detail=f"AI provider error: {detail}")
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"AI analysis failed: {str(exc)[:300]}")
+
+
+
+@app.post("/chat")
+def chat(payload: ChatRequest, x_app_token: str = Header(default="")):
+    expected = os.getenv("APP_ACCESS_TOKEN", "")
+    api_key = os.getenv("GEMINI_API_KEY", "")
+    if not expected or not hmac.compare_digest(x_app_token, expected):
+        raise HTTPException(status_code=401, detail="Invalid app access token.")
+    if not api_key:
+        raise HTTPException(status_code=503, detail="AI service is not configured by the server owner.")
+
+    prompt = (
+        "You are eFootball Pro Companion, a practical expert eFootball Mobile coach. "
+        "Reply in Amharic when the user writes Amharic; otherwise reply in the user's language. "
+        "Give concise, direct tactical advice. Never claim to see a live match or know hidden game state. "
+        "Ask for a screenshot when visual evidence is required. Do not promise network fixes or zero lag. "
+        "User message: " + payload.message
+    )
+    body = {
+        "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+        "generationConfig": {"temperature": 0.35, "maxOutputTokens": 900}
+    }
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
+    request = urllib.request.Request(
+        url,
+        data=json.dumps(body).encode("utf-8"),
+        headers={"Content-Type": "application/json", "x-goog-api-key": api_key},
+        method="POST"
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=75) as response:
+            result = json.loads(response.read().decode("utf-8"))
+        parts = result.get("candidates", [{}])[0].get("content", {}).get("parts", [])
+        answer = "\\n".join(p.get("text", "") for p in parts if p.get("text"))
+        if not answer.strip():
+            raise ValueError("Model returned no text.")
+        return {"answer": answer, "model": GEMINI_MODEL}
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")[:1000]
+        raise HTTPException(status_code=502, detail=f"AI provider error: {detail}")
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"AI chat failed: {str(exc)[:300]}")
