@@ -556,6 +556,51 @@ class MainActivity : Activity() {
     }
 
 
+    private fun requestWireGuardConnect() {
+        val permissionIntent = VpnService.prepare(this)
+        if (permissionIntent == null) startWireGuardConnect()
+        else startActivityForResult(permissionIntent, vpnPermissionRequestCode)
+    }
+
+    private fun startWireGuardConnect() {
+        vpnConnectButton.isEnabled = false
+        vpnStatus.text = "Starting secure WireGuard tunnel…"
+        thread {
+            try {
+                val message = vpnController.connect()
+                runOnUiThread {
+                    vpnStatus.text = message
+                    vpnDisconnectButton.isEnabled = true
+                    vpnConnectButton.isEnabled = true
+                }
+            } catch (e: Exception) {
+                runOnUiThread {
+                    vpnStatus.text = "VPN connection failed: " + (e.message ?: "check the profile and relay server")
+                    vpnConnectButton.isEnabled = vpnController.isProfileReady()
+                    vpnDisconnectButton.isEnabled = vpnController.isConnected()
+                }
+            }
+        }
+    }
+
+    private fun disconnectWireGuard() {
+        vpnDisconnectButton.isEnabled = false
+        thread {
+            try {
+                val message = vpnController.disconnect()
+                runOnUiThread {
+                    vpnStatus.text = message
+                    vpnDisconnectButton.isEnabled = false
+                    vpnConnectButton.isEnabled = vpnController.isProfileReady()
+                }
+            } catch (e: Exception) {
+                runOnUiThread {
+                    vpnStatus.text = "Disconnect failed: " + (e.message ?: "unknown error")
+                    vpnDisconnectButton.isEnabled = true
+                }
+            }
+        }
+    }
     private fun requestOneShotCapture() {
         captureButton.isEnabled = false
         try {
@@ -590,6 +635,25 @@ class MainActivity : Activity() {
                     captureButton.isEnabled = true
                     captureStatus.text = "Screen capture cancelled. Nothing was recorded."
                 }
+            }
+            vpnProfileRequestCode -> {
+                if (resultCode == RESULT_OK && data?.data != null) {
+                    try {
+                        val bytes = contentResolver.openInputStream(data.data!!)?.use { it.readBytes() }
+                            ?: throw IllegalStateException("Could not read the selected profile.")
+                        vpnStatus.text = vpnController.importProfile(bytes)
+                        vpnConnectButton.isEnabled = true
+                    } catch (e: Exception) {
+                        vpnStatus.text = "Profile rejected: " + (e.message ?: "invalid WireGuard profile")
+                        vpnConnectButton.isEnabled = false
+                    }
+                } else {
+                    vpnStatus.text = "Profile import cancelled."
+                }
+            }
+            vpnPermissionRequestCode -> {
+                if (resultCode == RESULT_OK) startWireGuardConnect()
+                else vpnStatus.text = "Android VPN permission was denied. No tunnel was started."
             }
             voiceRequestCode -> {
                 if (resultCode == RESULT_OK) {
