@@ -15,6 +15,7 @@ import android.os.Bundle
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.net.Uri
+import android.net.VpnService
 import androidx.core.content.FileProvider
 import android.graphics.Typeface
 import android.content.Context
@@ -61,6 +62,13 @@ class MainActivity : Activity() {
     private lateinit var chatSendButton: Button
     private lateinit var chatResult: TextView
     private lateinit var voiceButton: Button
+    private lateinit var vpnStatus: TextView
+    private lateinit var vpnImportButton: Button
+    private lateinit var vpnConnectButton: Button
+    private lateinit var vpnDisconnectButton: Button
+    private val vpnController by lazy { WireGuardController(this) }
+    private val vpnProfileRequestCode = 7503
+    private val vpnPermissionRequestCode = 7504
     private var speechTts: TextToSpeech? = null
     private var speakNextReply = false
     private val voiceRequestCode = 7402
@@ -206,6 +214,38 @@ class MainActivity : Activity() {
         section(content, "CONNECTION STATUS")
         networkInfo = cardText("Checking network…")
         content.addView(networkInfo, matchWrap())
+
+        section(content, "TITAN GAMING NETWORK • WIREGUARD")
+        vpnStatus = cardText("FREE MODE • No relay server is configured. Import a trusted WireGuard profile to use a real tunnel. The profile must route eFootball only.")
+        content.addView(vpnStatus, matchWrap())
+        vpnImportButton = Button(this).apply {
+            text = "IMPORT WIREGUARD PROFILE"
+            isAllCaps = false
+            setOnClickListener {
+                val picker = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                    addCategory(Intent.CATEGORY_OPENABLE)
+                    type = "*/*"
+                }
+                startActivityForResult(picker, vpnProfileRequestCode)
+            }
+        }
+        val vpnImportParams = matchWrap(); vpnImportParams.topMargin = dp(7); content.addView(vpnImportButton, vpnImportParams)
+        vpnConnectButton = Button(this).apply {
+            text = "CONNECT TITAN VPN"
+            isAllCaps = false
+            isEnabled = false
+            setOnClickListener { requestWireGuardConnect() }
+        }
+        val vpnConnectParams = matchWrap(); vpnConnectParams.topMargin = dp(6); content.addView(vpnConnectButton, vpnConnectParams)
+        vpnDisconnectButton = Button(this).apply {
+            text = "DISCONNECT VPN"
+            isAllCaps = false
+            isEnabled = false
+            setOnClickListener { disconnectWireGuard() }
+        }
+        val vpnDisconnectParams = matchWrap(); vpnDisconnectParams.topMargin = dp(6); content.addView(vpnDisconnectButton, vpnDisconnectParams)
+        val vpnNote = cardText("Security: full-device VPN profiles are rejected. Only an imported profile with the installed eFootball app in IncludedApplications is accepted. No private key is saved by this app; re-import the profile after restarting.")
+        val vpnNoteParams = matchWrap(); vpnNoteParams.topMargin = dp(6); content.addView(vpnNote, vpnNoteParams)
 
         section(content, "NETWORK DIAGNOSTICS")
         status = cardText("Ready when you are")
