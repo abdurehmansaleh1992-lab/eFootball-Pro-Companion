@@ -26,10 +26,13 @@ class OneShotCaptureService : Service() {
     private var display: VirtualDisplay? = null
     private val handler = Handler(Looper.getMainLooper())
     private var captured = false
+    private var finished = false
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        captured = false
+        finished = false
         createChannel()
         val notification = Notification.Builder(this, CHANNEL)
             .setSmallIcon(android.R.drawable.ic_menu_camera)
@@ -64,7 +67,9 @@ class OneShotCaptureService : Service() {
 
             reader = ImageReader.newInstance(width, height, android.graphics.PixelFormat.RGBA_8888, 2)
             projection?.registerCallback(object : MediaProjection.Callback() {
-                override fun onStop() { releaseCapture() }
+                override fun onStop() {
+                    if (!finished) handler.post { finishWithMessage("Screen capture was stopped by Android.") }
+                }
             }, handler)
             display = projection?.createVirtualDisplay(
                 "EFootballOneShot", width, height, density,
@@ -109,6 +114,8 @@ class OneShotCaptureService : Service() {
     }
 
     private fun finishWithMessage(message: String, filePath: String? = null) {
+        if (finished) return
+        finished = true
         val result = Intent("com.efootball.companion.CAPTURE_RESULT").setPackage(packageName).putExtra("message", message)
         if (filePath != null) result.putExtra("filePath", filePath)
         sendBroadcast(result)
