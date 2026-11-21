@@ -3,6 +3,10 @@ package com.efootball.companion
 import android.app.Activity
 import android.app.AlertDialog
 import android.media.projection.MediaProjectionManager
+import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
+import android.speech.tts.TextToSpeech
+import java.util.Locale
 import android.content.Intent
 import android.content.BroadcastReceiver
 import android.content.IntentFilter
@@ -53,6 +57,10 @@ class MainActivity : Activity() {
     private lateinit var chatInput: EditText
     private lateinit var chatSendButton: Button
     private lateinit var chatResult: TextView
+    private lateinit var voiceButton: Button
+    private var speechTts: TextToSpeech? = null
+    private var speakNextReply = false
+    private val voiceRequestCode = 7402
     private val aiPrefs by lazy { getSharedPreferences("ai_backend", Context.MODE_PRIVATE) }
     private val aiBackendUrl: String get() = aiPrefs.getString("backend_url", "") ?: ""
     private val aiAccessToken: String get() = aiPrefs.getString("access_token", "") ?: ""
@@ -98,6 +106,12 @@ class MainActivity : Activity() {
         window.statusBarColor = bg
         window.navigationBarColor = bg
         window.decorView.systemUiVisibility = 0
+        speechTts = TextToSpeech(this) { result ->
+            if (result == TextToSpeech.SUCCESS) {
+                val languageResult = speechTts?.setLanguage(Locale("am", "ET")) ?: TextToSpeech.LANG_NOT_SUPPORTED
+                if (languageResult == TextToSpeech.LANG_MISSING_DATA || languageResult == TextToSpeech.LANG_NOT_SUPPORTED) speechTts?.language = Locale.getDefault()
+            }
+        }
         buildScreen()
         val filter = IntentFilter("com.efootball.companion.CAPTURE_RESULT")
         if (Build.VERSION.SDK_INT >= 33) registerReceiver(captureReceiver, filter, Context.RECEIVER_NOT_EXPORTED) else registerReceiver(captureReceiver, filter)
@@ -106,6 +120,8 @@ class MainActivity : Activity() {
 
     override fun onDestroy() {
         try { unregisterReceiver(captureReceiver) } catch (_: Exception) {}
+        speechTts?.stop()
+        speechTts?.shutdown()
         super.onDestroy()
     }
 
@@ -291,6 +307,14 @@ class MainActivity : Activity() {
         val chatButtonParams = matchWrap(); chatButtonParams.topMargin = dp(6); content.addView(chatSendButton, chatButtonParams)
         chatResult = cardText("Your AI coach reply will appear here.")
         val chatResultParams = matchWrap(); chatResultParams.topMargin = dp(8); content.addView(chatResult, chatResultParams)
+        voiceButton = Button(this).apply {
+            text = "TALK TO AI COACH (AMHARIC)"
+            isAllCaps = false
+            setOnClickListener { startVoiceCoach() }
+        }
+        val voiceParams = matchWrap(); voiceParams.topMargin = dp(7); content.addView(voiceButton, voiceParams)
+        val voiceNote = cardText("Tap to speak, then the AI coach replies in text and voice. This push-to-talk mode avoids an always-on microphone. Amharic speech support depends on your phone's speech services.")
+        val voiceNoteParams = matchWrap(); voiceNoteParams.topMargin = dp(6); content.addView(voiceNote, voiceNoteParams)
 
         section(content, "SMART SCREENSHOT COACH")
         val coach = cardText("Screenshot analysis is being prepared. You will choose when to share a game screenshot. No continuous screen recording.")
@@ -373,6 +397,12 @@ class MainActivity : Activity() {
                 allTimes.isEmpty() || loss >= 25 || avg >= redAvgLimit || jitter >= 100 -> "RED"
                 avg <= greenAvgLimit && loss <= 5 && jitter <= 35 -> "GREEN"
                 else -> "YELLOW"
+            }
+            val advice = when {
+                loss >= 10 -> "Advice: packet failures are high. Move to a stronger signal or test the other SIM/Wi-Fi."
+                jitter >= 60 -> "Advice: connection is fluctuating. Pause downloads, disable hotspot sharing, and retest."
+                avg >= 150 -> "Advice: response is slow. Try another network location and compare Wi-Fi with mobile data."
+                else -> "Advice: connection looks comparatively steady. Pause downloads and background sync while playing."
             }
             runOnUiThread {
                 showTrafficGrade(grade, avg, jitter, loss)
@@ -616,6 +646,47 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun startVoiceCoach() {
+        if (!SpeechRecognizer.isRecognitionAvailable(this)) {
+            chatResult.text = "Speech recognition is unavailable. You can still type to the AI coach."
+            return
+        }
+        try {
+            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE, "am-ET")
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "am-ET")
+                putExtra(RecognizerIntent.EXTRA_PROMPT, "በአማርኛ ጥያቄህን ተናገር")
+                putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+            }
+            speakNextReply = true
+            startActivityForResult(intent, voiceRequestCode)
+        } catch (e: Exception) {
+            speakNextReply = false
+            chatResult.text = "Could not start voice input: ${e.message ?: "speech service unavailable"}"
+        }
+    }
+
+    @Deprecated("Deprecated by Android; retained for compatibility")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == voiceRequestCode) {
+            if (resultCode == RESULT_OK) {
+                val spoken = data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
+                if (!spoken.isNullOrBlank()) {
+                    chatInput.setText(spoken)
+                    sendChatMessage()
+                } else {
+                    speakNextReply = false
+                    chatResult.text = "No speech recognized. Try again or type your question."
+                }
+            } else {
+                speakNextReply = false
+                chatResult.text = "Voice input cancelled. You can type your question."
+            }
+        }
+    }
+
     private fun sendChatMessage() {
         val message = chatInput.text.toString().trim()
         if (message.isBlank()) {
@@ -649,7 +720,13 @@ class MainActivity : Activity() {
                 if (code !in 200..299) throw IllegalStateException("AI server error $code: $responseText")
                 val answer = JSONObject(responseText).optString("answer", "")
                 if (answer.isBlank()) throw IllegalStateException("AI returned an empty answer.")
-                runOnUiThread { chatResult.text = answer }
+                runOnUiThread {
+                    chatResult.text = answer
+                    if (speakNextReply) {
+                        speechTts?.speak(answer, TextToSpeech.QUEUE_FLUSH, null, "coach-reply")
+                        speakNextReply = false
+                    }
+                }
             } catch (e: Exception) {
                 runOnUiThread { chatResult.text = "Chat failed: ${e.message ?: "connection error"}. Check backend URL, token, and internet." }
             } finally {
